@@ -259,3 +259,4 @@ google-cloud-translate==3.20.2
 sqlalchemy
 psycopg2-binary
 asyncpg
+boto3>=1.34.0

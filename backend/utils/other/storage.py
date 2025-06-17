@@ -1,87 +1,93 @@
 import datetime
-import json
 import os
 from typing import List
 
-from google.cloud import storage
-from google.oauth2 import service_account
-from google.cloud.storage import transfer_manager
+import boto3
+from botocore.client import Config
+from botocore.exceptions import ClientError
 
 from database.redis_db import cache_signed_url, get_cached_signed_url
 
-if os.environ.get('SERVICE_ACCOUNT_JSON'):
-    service_account_info = json.loads(os.environ["SERVICE_ACCOUNT_JSON"])
-    credentials = service_account.Credentials.from_service_account_info(service_account_info)
-    storage_client = storage.Client(credentials=credentials)
-else:
-    storage_client = storage.Client()
+# Initialize S3 client for MinIO
+S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
+S3_ACCESS_KEY_ID = os.getenv('S3_ACCESS_KEY_ID')
+S3_SECRET_ACCESS_KEY = os.getenv('S3_SECRET_ACCESS_KEY')
+S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
 
-speech_profiles_bucket = os.getenv('BUCKET_SPEECH_PROFILES')
-postprocessing_audio_bucket = os.getenv('BUCKET_POSTPROCESSING')
-memories_recordings_bucket = os.getenv('BUCKET_MEMORIES_RECORDINGS')
-syncing_local_bucket = os.getenv('BUCKET_TEMPORAL_SYNC_LOCAL')
-omi_apps_bucket = os.getenv('BUCKET_PLUGINS_LOGOS')
-app_thumbnails_bucket = os.getenv('BUCKET_APP_THUMBNAILS')
-chat_files_bucket = os.getenv('BUCKET_CHAT_FILES')
+s3_client = boto3.client(
+    's3',
+    endpoint_url=S3_ENDPOINT_URL,
+    aws_access_key_id=S3_ACCESS_KEY_ID,
+    aws_secret_access_key=S3_SECRET_ACCESS_KEY,
+    config=Config(signature_version='s3v4')
+)
 
 # *******************************************
 # ************* SPEECH PROFILE **************
 # *******************************************
 def upload_profile_audio(file_path: str, uid: str):
-    bucket = storage_client.bucket(speech_profiles_bucket)
-    path = f'{uid}/speech_profile.wav'
-    blob = bucket.blob(path)
-    blob.upload_from_filename(file_path)
-    return f'https://storage.googleapis.com/{speech_profiles_bucket}/{path}'
+    object_key = f'speech-profiles/{uid}/speech_profile.wav'
+    s3_client.upload_file(file_path, S3_BUCKET_NAME, object_key)
+    return f'{S3_ENDPOINT_URL}/{S3_BUCKET_NAME}/{object_key}'
 
 
 def get_user_has_speech_profile(uid: str) -> bool:
-    bucket = storage_client.bucket(speech_profiles_bucket)
-    blob = bucket.blob(f'{uid}/speech_profile.wav')
-    return blob.exists()
+    object_key = f'speech-profiles/{uid}/speech_profile.wav'
+    try:
+        s3_client.head_object(Bucket=S3_BUCKET_NAME, Key=object_key)
+        return True
+    except ClientError:
+        return False
 
 
 def get_profile_audio_if_exists(uid: str, download: bool = True) -> str:
-    bucket = storage_client.bucket(speech_profiles_bucket)
-    path = f'{uid}/speech_profile.wav'
-    blob = bucket.blob(path)
-    if blob.exists():
+    object_key = f'speech-profiles/{uid}/speech_profile.wav'
+    try:
+        s3_client.head_object(Bucket=S3_BUCKET_NAME, Key=object_key)
         if download:
             file_path = f'_temp/{uid}_speech_profile.wav'
-            blob.download_to_filename(file_path)
+            s3_client.download_file(S3_BUCKET_NAME, object_key, file_path)
             return file_path
-        return _get_signed_url(blob, 60)
-
-    return None
+        return _get_signed_url(object_key, 60)
+    except ClientError:
+        return None
 
 
 def upload_additional_profile_audio(file_path: str, uid: str) -> None:
-    bucket = storage_client.bucket(speech_profiles_bucket)
-    path = f'{uid}/additional_profile_recordings/{file_path.split("/")[-1]}'
-    blob = bucket.blob(path)
-    blob.upload_from_filename(file_path)
+    file_name = file_path.split("/")[-1]
+    object_key = f'speech-profiles/{uid}/additional_profile_recordings/{file_name}'
+    s3_client.upload_file(file_path, S3_BUCKET_NAME, object_key)
 
 
 def delete_additional_profile_audio(uid: str, file_name: str) -> None:
-    bucket = storage_client.bucket(speech_profiles_bucket)
-    blob = bucket.blob(f'{uid}/additional_profile_recordings/{file_name}')
-    if blob.exists():
+    object_key = f'speech-profiles/{uid}/additional_profile_recordings/{file_name}'
+    try:
+        s3_client.head_object(Bucket=S3_BUCKET_NAME, Key=object_key)
         print('delete_additional_profile_audio deleting', file_name)
-        blob.delete()
+        s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=object_key)
+    except ClientError:
+        pass
 
 
 def get_additional_profile_recordings(uid: str, download: bool = False) -> List[str]:
-    bucket = storage_client.bucket(speech_profiles_bucket)
-    blobs = bucket.list_blobs(prefix=f'{uid}/additional_profile_recordings/')
-    if download:
-        paths = []
-        for blob in blobs:
-            file_path = f'_temp/{uid}_{blob.name.split("/")[-1]}'
-            blob.download_to_filename(file_path)
-            paths.append(file_path)
-        return paths
+    prefix = f'speech-profiles/{uid}/additional_profile_recordings/'
+    try:
+        response = s3_client.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=prefix)
+        if 'Contents' not in response:
+            return []
+        
+        if download:
+            paths = []
+            for obj in response['Contents']:
+                file_name = obj['Key'].split("/")[-1]
+                file_path = f'_temp/{uid}_{file_name}'
+                s3_client.download_file(S3_BUCKET_NAME, obj['Key'], file_path)
+                paths.append(file_path)
+            return paths
 
-    return [_get_signed_url(blob, 60) for blob in blobs]
+        return [_get_signed_url(obj['Key'], 60) for obj in response['Contents']]
+    except ClientError:
+        return []
 
 
 # ********************************************
@@ -89,69 +95,95 @@ def get_additional_profile_recordings(uid: str, download: bool = False) -> List[
 # ********************************************
 
 def upload_user_person_speech_sample(file_path: str, uid: str, person_id: str) -> None:
-    bucket = storage_client.bucket(speech_profiles_bucket)
-    path = f'{uid}/people_profiles/{person_id}/{file_path.split("/")[-1]}'
-    blob = bucket.blob(path)
-    blob.upload_from_filename(file_path)
+    file_name = file_path.split("/")[-1]
+    object_key = f'speech-profiles/{uid}/people_profiles/{person_id}/{file_name}'
+    s3_client.upload_file(file_path, S3_BUCKET_NAME, object_key)
 
 
 def delete_user_person_speech_sample(uid: str, person_id: str, file_name: str) -> None:
-    bucket = storage_client.bucket(speech_profiles_bucket)
-    blob = bucket.blob(f'{uid}/people_profiles/{person_id}/{file_name}')
-    if blob.exists():
-        blob.delete()
+    object_key = f'speech-profiles/{uid}/people_profiles/{person_id}/{file_name}'
+    try:
+        s3_client.head_object(Bucket=S3_BUCKET_NAME, Key=object_key)
+        s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=object_key)
+    except ClientError:
+        pass
 
 
 def delete_speech_sample_for_people(uid: str, file_name: str) -> None:
-    bucket = storage_client.bucket(speech_profiles_bucket)
-    blobs = bucket.list_blobs(prefix=f'{uid}/people_profiles/')
-    for blob in blobs:
-        if file_name in blob.name:
-            print('delete_speech_sample_for_people deleting', blob.name)
-            blob.delete()
+    prefix = f'speech-profiles/{uid}/people_profiles/'
+    try:
+        response = s3_client.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=prefix)
+        if 'Contents' in response:
+            for obj in response['Contents']:
+                if file_name in obj['Key']:
+                    print('delete_speech_sample_for_people deleting', obj['Key'])
+                    s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=obj['Key'])
+    except ClientError:
+        pass
 
 
 def delete_user_person_speech_samples(uid: str, person_id: str) -> None:
-    bucket = storage_client.bucket(speech_profiles_bucket)
-    blobs = bucket.list_blobs(prefix=f'{uid}/people_profiles/{person_id}/')
-    for blob in blobs:
-        blob.delete()
+    prefix = f'speech-profiles/{uid}/people_profiles/{person_id}/'
+    try:
+        response = s3_client.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=prefix)
+        if 'Contents' in response:
+            for obj in response['Contents']:
+                s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=obj['Key'])
+    except ClientError:
+        pass
 
 
 def get_user_people_ids(uid: str) -> List[str]:
-    bucket = storage_client.bucket(speech_profiles_bucket)
-    blobs = bucket.list_blobs(prefix=f'{uid}/people_profiles/')
-    return [blob.name.split("/")[-2] for blob in blobs]
+    prefix = f'speech-profiles/{uid}/people_profiles/'
+    try:
+        response = s3_client.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=prefix)
+        if 'Contents' not in response:
+            return []
+        
+        people_ids = set()
+        for obj in response['Contents']:
+            # Extract person_id from path like speech-profiles/uid/people_profiles/person_id/filename
+            path_parts = obj['Key'].split('/')
+            if len(path_parts) >= 4:
+                people_ids.add(path_parts[3])
+        return list(people_ids)
+    except ClientError:
+        return []
 
 
 def get_user_person_speech_samples(uid: str, person_id: str, download: bool = False) -> List[str]:
-    bucket = storage_client.bucket(speech_profiles_bucket)
-    blobs = bucket.list_blobs(prefix=f'{uid}/people_profiles/{person_id}/')
-    if download:
-        paths = []
-        for blob in blobs:
-            file_path = f'_temp/{uid}_person_{blob.name.split("/")[-1]}'
-            blob.download_to_filename(file_path)
-            paths.append(file_path)
-        return paths
+    prefix = f'speech-profiles/{uid}/people_profiles/{person_id}/'
+    try:
+        response = s3_client.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=prefix)
+        if 'Contents' not in response:
+            return []
+        
+        if download:
+            paths = []
+            for obj in response['Contents']:
+                file_name = obj['Key'].split("/")[-1]
+                file_path = f'_temp/{uid}_person_{file_name}'
+                s3_client.download_file(S3_BUCKET_NAME, obj['Key'], file_path)
+                paths.append(file_path)
+            return paths
 
-    return [_get_signed_url(blob, 60) for blob in blobs]
+        return [_get_signed_url(obj['Key'], 60) for obj in response['Contents']]
+    except ClientError:
+        return []
 
 
 # ********************************************
 # ************* POST PROCESSING **************
 # ********************************************
 def upload_postprocessing_audio(file_path: str):
-    bucket = storage_client.bucket(postprocessing_audio_bucket)
-    blob = bucket.blob(file_path)
-    blob.upload_from_filename(file_path)
-    return f'https://storage.googleapis.com/{postprocessing_audio_bucket}/{file_path}'
+    object_key = f'postprocessing/{file_path}'
+    s3_client.upload_file(file_path, S3_BUCKET_NAME, object_key)
+    return f'{S3_ENDPOINT_URL}/{S3_BUCKET_NAME}/{object_key}'
 
 
 def delete_postprocessing_audio(file_path: str):
-    bucket = storage_client.bucket(postprocessing_audio_bucket)
-    blob = bucket.blob(file_path)
-    blob.delete()
+    object_key = f'postprocessing/{file_path}'
+    s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=object_key)
 
 
 # ***********************************
@@ -159,16 +191,14 @@ def delete_postprocessing_audio(file_path: str):
 # ***********************************
 
 def upload_sdcard_audio(file_path: str):
-    bucket = storage_client.bucket(postprocessing_audio_bucket)
-    blob = bucket.blob(file_path)
-    blob.upload_from_filename(file_path)
-    return f'https://storage.googleapis.com/{postprocessing_audio_bucket}/sdcard/{file_path}'
+    object_key = f'postprocessing/sdcard/{file_path}'
+    s3_client.upload_file(file_path, S3_BUCKET_NAME, object_key)
+    return f'{S3_ENDPOINT_URL}/{S3_BUCKET_NAME}/{object_key}'
 
 
 def download_postprocessing_audio(file_path: str, destination_file_path: str):
-    bucket = storage_client.bucket(postprocessing_audio_bucket)
-    blob = bucket.blob(file_path)
-    blob.download_to_filename(destination_file_path)
+    object_key = f'postprocessing/{file_path}'
+    s3_client.download_file(S3_BUCKET_NAME, object_key, destination_file_path)
 
 
 # ************************************************
@@ -176,118 +206,144 @@ def download_postprocessing_audio(file_path: str, destination_file_path: str):
 # ************************************************
 
 def upload_conversation_recording(file_path: str, uid: str, conversation_id: str):
-    bucket = storage_client.bucket(memories_recordings_bucket)
-    path = f'{uid}/{conversation_id}.wav'
-    blob = bucket.blob(path)
-    blob.upload_from_filename(file_path)
-    return f'https://storage.googleapis.com/{memories_recordings_bucket}/{path}'
+    object_key = f'memories-recordings/{uid}/{conversation_id}.wav'
+    s3_client.upload_file(file_path, S3_BUCKET_NAME, object_key)
+    return f'{S3_ENDPOINT_URL}/{S3_BUCKET_NAME}/{object_key}'
 
 
 def get_conversation_recording_if_exists(uid: str, memory_id: str) -> str:
     print('get_conversation_recording_if_exists', uid, memory_id)
-    bucket = storage_client.bucket(memories_recordings_bucket)
-    path = f'{uid}/{memory_id}.wav'
-    blob = bucket.blob(path)
-    if blob.exists():
+    object_key = f'memories-recordings/{uid}/{memory_id}.wav'
+    try:
+        s3_client.head_object(Bucket=S3_BUCKET_NAME, Key=object_key)
         file_path = f'_temp/{memory_id}.wav'
-        blob.download_to_filename(file_path)
+        s3_client.download_file(S3_BUCKET_NAME, object_key, file_path)
         return file_path
-    return None
+    except ClientError:
+        return None
 
 
 def delete_all_conversation_recordings(uid: str):
     if not uid:
         return
-    bucket = storage_client.bucket(memories_recordings_bucket)
-    blobs = bucket.list_blobs(prefix=uid)
-    for blob in blobs:
-        blob.delete()
+    prefix = f'memories-recordings/{uid}'
+    try:
+        response = s3_client.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=prefix)
+        if 'Contents' in response:
+            for obj in response['Contents']:
+                s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=obj['Key'])
+    except ClientError:
+        pass
 
 
 # ********************************************
 # ************* SYNCING FILES **************
 # ********************************************
 def get_syncing_file_temporal_url(file_path: str):
-    bucket = storage_client.bucket(syncing_local_bucket)
-    blob = bucket.blob(file_path)
-    blob.upload_from_filename(file_path)
-    return f'https://storage.googleapis.com/{syncing_local_bucket}/{file_path}'
+    object_key = f'temporal-sync/{file_path}'
+    s3_client.upload_file(file_path, S3_BUCKET_NAME, object_key)
+    return f'{S3_ENDPOINT_URL}/{S3_BUCKET_NAME}/{object_key}'
 
 def get_syncing_file_temporal_signed_url(file_path: str):
-    bucket = storage_client.bucket(syncing_local_bucket)
-    blob = bucket.blob(file_path)
-    blob.upload_from_filename(file_path)
-    return _get_signed_url(blob, 15)
+    object_key = f'temporal-sync/{file_path}'
+    s3_client.upload_file(file_path, S3_BUCKET_NAME, object_key)
+    return _get_signed_url(object_key, 15)
 
 
 def delete_syncing_temporal_file(file_path: str):
-    bucket = storage_client.bucket(syncing_local_bucket)
-    blob = bucket.blob(file_path)
-    blob.delete()
+    object_key = f'temporal-sync/{file_path}'
+    s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=object_key)
 
 
 # **********************************
 # ************* UTILS **************
 # **********************************
 
-def _get_signed_url(blob, minutes):
-    if cached := get_cached_signed_url(blob.name):
-        return cached
+def _get_signed_url(object_key: str, minutes: int):
+    try:
+        if cached := get_cached_signed_url(object_key):
+            return cached
+    except Exception as e:
+        print(f"Warning: Redis caching unavailable: {e}")
 
-    signed_url = blob.generate_signed_url(version="v4", expiration=datetime.timedelta(minutes=minutes), method="GET")
-    cache_signed_url(blob.name, signed_url, minutes * 60)
+    signed_url = s3_client.generate_presigned_url(
+        'get_object',
+        Params={'Bucket': S3_BUCKET_NAME, 'Key': object_key},
+        ExpiresIn=minutes * 60
+    )
+    
+    try:
+        cache_signed_url(object_key, signed_url, minutes * 60)
+    except Exception as e:
+        print(f"Warning: Could not cache signed URL: {e}")
+    
     return signed_url
 
 
 def upload_app_logo(file_path: str, app_id: str):
-    bucket = storage_client.bucket(omi_apps_bucket)
-    path = f'{app_id}.png'
-    blob = bucket.blob(path)
-    blob.cache_control = 'public, no-cache'
-    blob.upload_from_filename(file_path)
-    return f'https://storage.googleapis.com/{omi_apps_bucket}/{path}'
+    object_key = f'app-logos/{app_id}.png'
+    s3_client.upload_file(file_path, S3_BUCKET_NAME, object_key)
+    # Set cache control metadata
+    s3_client.copy_object(
+        Bucket=S3_BUCKET_NAME,
+        Key=object_key,
+        CopySource={'Bucket': S3_BUCKET_NAME, 'Key': object_key},
+        Metadata={'Cache-Control': 'public, no-cache'},
+        MetadataDirective='REPLACE'
+    )
+    return f'{S3_ENDPOINT_URL}/{S3_BUCKET_NAME}/{object_key}'
 
 
 def delete_app_logo(img_url: str):
-    bucket = storage_client.bucket(omi_apps_bucket)
-    path = img_url.split(f'https://storage.googleapis.com/{omi_apps_bucket}/')[1]
-    print('delete_app_logo', path)
-    blob = bucket.blob(path)
-    blob.delete()
+    # Extract object key from URL
+    if S3_ENDPOINT_URL in img_url:
+        object_key = img_url.split(f'{S3_ENDPOINT_URL}/{S3_BUCKET_NAME}/')[1]
+    else:
+        # Fallback for old GCS URLs or other formats
+        object_key = f'app-logos/{img_url.split("/")[-1]}'
+    
+    print('delete_app_logo', object_key)
+    s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=object_key)
 
 def upload_app_thumbnail(file_path: str, thumbnail_id: str) -> str:
-    bucket = storage_client.bucket(app_thumbnails_bucket)
-    path = f'{thumbnail_id}.jpg'
-    blob = bucket.blob(path)
-    blob.cache_control = 'public, no-cache'
-    blob.upload_from_filename(file_path)
-    public_url = f'https://storage.googleapis.com/{app_thumbnails_bucket}/{path}'
+    object_key = f'app-thumbnails/{thumbnail_id}.jpg'
+    s3_client.upload_file(file_path, S3_BUCKET_NAME, object_key)
+    # Set cache control metadata
+    s3_client.copy_object(
+        Bucket=S3_BUCKET_NAME,
+        Key=object_key,
+        CopySource={'Bucket': S3_BUCKET_NAME, 'Key': object_key},
+        Metadata={'Cache-Control': 'public, no-cache'},
+        MetadataDirective='REPLACE'
+    )
+    public_url = f'{S3_ENDPOINT_URL}/{S3_BUCKET_NAME}/{object_key}'
     return public_url
 
 def get_app_thumbnail_url(thumbnail_id: str) -> str:
-    path = f'{thumbnail_id}.jpg'
-    return f'https://storage.googleapis.com/{app_thumbnails_bucket}/{path}'
+    object_key = f'app-thumbnails/{thumbnail_id}.jpg'
+    return f'{S3_ENDPOINT_URL}/{S3_BUCKET_NAME}/{object_key}'
 
 # **********************************
 # ************* CHAT FILES **************
 # **********************************
 def upload_multi_chat_files(files_name: List[str], uid: str) -> dict:
     """
-    Upload multiple files to Google Cloud Storage in the chat files bucket.
+    Upload multiple files to S3/MinIO in the chat files prefix.
 
     Args:
         files_name: List of file paths to upload
         uid: User ID to use as part of the storage path
 
     Returns:
-        dict: A dictionary mapping original filenames to their Google Cloud Storage URLs
+        dict: A dictionary mapping original filenames to their S3/MinIO URLs
     """
-    bucket = storage_client.bucket(chat_files_bucket)
-    result = transfer_manager.upload_many_from_filenames(bucket, files_name, source_directory="./", blob_name_prefix=f'{uid}/')
     dictFiles = {}
-    for name, result in zip(files_name, result):
-        if isinstance(result, Exception):
-            print("Failed to upload {} due to exception: {}".format(name, result))
-        else:
-            dictFiles[name] = f'https://storage.googleapis.com/{chat_files_bucket}/{uid}/{name}'
+    for file_name in files_name:
+        try:
+            object_key = f'chat-files/{uid}/{file_name}'
+            s3_client.upload_file(file_name, S3_BUCKET_NAME, object_key)
+            dictFiles[file_name] = f'{S3_ENDPOINT_URL}/{S3_BUCKET_NAME}/{object_key}'
+        except Exception as e:
+            print("Failed to upload {} due to exception: {}".format(file_name, e))
+    
     return dictFiles
