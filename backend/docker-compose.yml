@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: omi_db
+      POSTGRES_USER: omi_user
+      POSTGRES_PASSWORD: omi_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omi_user -d omi_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis (if needed)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass redis_password
+
+  # MinIO for S3-compatible storage (optional)
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ACCESS_KEY: minio_access_key
+      MINIO_SECRET_KEY: minio_secret_key
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+  # Omi Backend (unified)
+  omi-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.unified
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_CHOICE=postgres
+      - POSTGRES_URL=postgresql://omi_user:omi_password@postgres:5432/omi_db
+      - REDIS_DB_HOST=redis
+      - REDIS_DB_PORT=6379
+      - REDIS_DB_PASSWORD=redis_password
+      - S3_ENDPOINT_URL=http://minio:9000
+      - S3_ACCESS_KEY_ID=minio_access_key
+      - S3_SECRET_ACCESS_KEY=minio_secret_key
+      - S3_BUCKET_NAME=omi-data
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+    volumes:
+      - ./:/app
+      - model_cache:/app/pretrained_models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  postgres_data:
+  minio_data:
+  model_cache:

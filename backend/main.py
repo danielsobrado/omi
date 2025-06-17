@@ -12,8 +12,10 @@ from routers import (
     # custom_auth, # REMOVE
     payment, integration, conversations, memories, mcp, 
     # oauth, # REMOVE
+    modal_services,  # NEW: Contains speaker identification and VAD
 )
 from utils.other.timeout import TimeoutMiddleware
+from utils.other.notifications import start_cron_job
 
 # --- Database Initialization ---
 # Check which database is configured and initialize if necessary.
@@ -32,16 +34,8 @@ scheduler = AsyncIOScheduler()
 
 @app.on_event("startup")
 async def startup_event():
-    # Get the running event loop
-    loop = asyncio.get_running_loop()
-    
-    # Schedule the job to run every minute.
-    # Note: You'll need to install APScheduler and implement start_cron_job
-    # scheduler.add_job(
-    #     lambda: asyncio.run_coroutine_threadsafe(start_cron_job(), loop), 
-    #     'cron', 
-    #     minute='*'
-    # )
+    # Schedule the job to run every minute, just like the Modal Cron
+    scheduler.add_job(start_cron_job, 'cron', minute='*')
     scheduler.start()
     print("AsyncIOScheduler started for cron jobs.")
 
@@ -57,6 +51,7 @@ app.include_router(memories.router)
 app.include_router(chat.router)
 app.include_router(plugins.router)
 app.include_router(speech_profile.router)
+app.include_router(modal_services.router)  # NEW: Modal services (speaker identification, VAD)
 # app.include_router(screenpipe.router)
 app.include_router(notifications.router)
 app.include_router(workflow.router)
