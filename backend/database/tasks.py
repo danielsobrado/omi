@@ -1,23 +1,12 @@
-from google.cloud.firestore_v1 import FieldFilter
+import os
 
-from ._client import db
+# Read the environment variable to decide which database implementation to use.
+# Default to 'firestore' if not set.
+DATABASE_CHOICE = os.getenv("DATABASE_CHOICE", "firestore")
 
-def create(task_data: dict):
-    task_id = task_data['id']
-    task_ref = db.collection('tasks').document(task_id)
-    task_ref.set(task_data)
-
-def update(task_id: str, task_data: dict):
-    task_ref = db.collection('tasks').document(task_id)
-    task_ref.update(task_data)
-
-def get_task_by_action_request(action: str, request_id: str):
-    query = (db.collection('tasks').where(filter=FieldFilter('action', '==', action))
-             .where(filter=FieldFilter('request_id', '==', request_id))
-             .limit(1)
-             )
-    tasks = [item.to_dict() for item in query.stream()]
-    if len(tasks) > 0:
-        return tasks[0]
-
-    return None
+if DATABASE_CHOICE == "postgres":
+    print("Using PostgreSQL database implementation for tasks.")
+    from .postgres.tasks import *
+else:
+    print("Using Firestore database implementation for tasks.")
+    from .firestore.tasks import *

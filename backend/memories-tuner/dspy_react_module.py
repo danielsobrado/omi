@@ -13,7 +13,7 @@ load_dotenv()
 
 # Global variables
 MODEL_CONFIGURED = False
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 DUMMY_MODE = os.getenv("DUMMY_MODE", "false").lower() in ("true", "1", "yes")
 
 # Configure DSPy with OpenAI
@@ -25,18 +25,18 @@ def configure_openai():
         print("🔧 Running in DUMMY MODE - No API key required")
         return True
     
-    if not OPENAI_API_KEY or OPENAI_API_KEY == "your_openai_key_here" or OPENAI_API_KEY == "":
-        print("\033[91mERROR: OPENAI_API_KEY environment variable is not set properly.\033[0m")
-        print("Please set your OpenAI API key using one of these methods:")
-        print("1. Create a .env file with OPENAI_API_KEY=your_key_here")
-        print("2. Export the key in your shell: export OPENAI_API_KEY=your_key_here")
+    if not OPENROUTER_API_KEY or OPENROUTER_API_KEY == "your_openrouter_key_here" or OPENROUTER_API_KEY == "":
+        print("\033[91mERROR: OPENROUTER_API_KEY environment variable is not set properly.\033[0m")
+        print("Please set your OpenRouter API key using one of these methods:")
+        print("1. Create a .env file with OPENROUTER_API_KEY=your_key_here")
+        print("2. Export the key in your shell: export OPENROUTER_API_KEY=your_key_here")
         print("3. Run the app with ./run.sh which will prompt for the key")
         print("4. Alternatively, set DUMMY_MODE=true to run without an API key (demo only)")
         return False
     
     try:
-        # Configure OpenAI API key
-        openai.api_key = OPENAI_API_KEY
+        # Configure OpenRouter API key
+        openai.api_key = OPENROUTER_API_KEY
         
         # Configure DSPy using LM class instead of OpenAI directly
         # Based on DSPy tutorial: https://dspy.ai/tutorials/agents/
@@ -44,17 +44,17 @@ def configure_openai():
         
         # Check which DSPy approach works with the installed version
         try:
-            # Try first method (newer versions)
-            openai_lm = dspy.LM('openai/gpt-4o', api_key=OPENAI_API_KEY)
+            # Try first method (newer versions) - use OpenRouter
+            openai_lm = dspy.LM('openai/gpt-4o', api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1")
             dspy.configure(lm=openai_lm)
         except (AttributeError, TypeError):
             try:
-                # Try older approach through OpenAI class
-                openai_lm = dspy.OpenAI(model="gpt-4o", api_key=OPENAI_API_KEY)
+                # Try older approach through OpenAI class - use OpenRouter
+                openai_lm = dspy.OpenAI(model="openai/gpt-4o", api_key=os.getenv("OPENROUTER_API_KEY"), base_url="https://openrouter.ai/api/v1")
                 dspy.configure(lm=openai_lm)
             except Exception as e:
                 # Try direct model configuration without LM wrapper
-                dspy.configure(model="gpt-4o")
+                dspy.configure(model="openai/gpt-4o")
         
         print("✅ OpenAI model configured successfully")
         return True

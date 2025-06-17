@@ -1,3 +1,5 @@
 from memories import migration_incorrect_start_finish_time
+from add_user_notification_fields import migrate_add_user_notification_fields
 
 migration_incorrect_start_finish_time()
+migrate_add_user_notification_fields()

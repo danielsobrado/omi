@@ -1,37 +1,62 @@
 import json
 import os
 import time
-
+import base64
+import binascii
 from fastapi import Header, HTTPException
 from fastapi import Request
-from firebase_admin import auth
-from firebase_admin.auth import InvalidIdTokenError
+
+# We no longer need firebase_admin for authentication here
+# from firebase_admin import auth
+# from firebase_admin.auth import InvalidIdTokenError
 
 
-def get_user(uid: str):
-    user = auth.get_user(uid)
-    return user
+def get_user_from_db(uid: str):
+    # This is a simplified placeholder. In a real app, you'd query your DB.
+    # For now, we just need to ensure the hardcoded user is recognized.
+    if uid == os.getenv("BASIC_AUTH_UID"):
+        return {"uid": uid, "email": "user@example.com"}  # Return some mock data
+    return None
 
 
 def get_current_user_uid(authorization: str = Header(None)):
-    if authorization and os.getenv('ADMIN_KEY') in authorization:
+    if authorization and os.getenv('ADMIN_KEY') and os.getenv('ADMIN_KEY') in authorization:
         return authorization.split(os.getenv('ADMIN_KEY'))[1]
 
     if not authorization:
         raise HTTPException(status_code=401, detail="Authorization header not found")
-    elif len(str(authorization).split(' ')) != 2:
-        raise HTTPException(status_code=401, detail="Invalid authorization token")
 
+    # --- Start of Basic Auth Logic ---
     try:
-        token = authorization.split(' ')[1]
-        decoded_token = auth.verify_id_token(token)
-        # print('get_current_user_uid', decoded_token['uid'])
-        return decoded_token['uid']
-    except InvalidIdTokenError as e:
-        if os.getenv('LOCAL_DEVELOPMENT') == 'true':
-            return '123'
-        print(e)
-        raise HTTPException(status_code=401, detail="Invalid authorization token")
+        auth_scheme, credentials = authorization.split(" ", 1)
+        if auth_scheme.lower() != "basic":
+            raise HTTPException(status_code=401, detail="Invalid authentication scheme. Use Basic Auth.")
+
+        decoded_credentials = base64.b64decode(credentials).decode("utf-8")
+        username, password = decoded_credentials.split(":", 1)
+
+        # Get expected credentials from environment variables
+        expected_username = os.getenv("BASIC_AUTH_USERNAME")
+        expected_password = os.getenv("BASIC_AUTH_PASSWORD")
+        hardcoded_uid = os.getenv("BASIC_AUTH_UID")
+
+        if not all([expected_username, expected_password, hardcoded_uid]):
+             raise ConnectionError("Basic Auth environment variables not set on the server.")
+
+        # Validate credentials
+        if username == expected_username and password == expected_password:
+            return hardcoded_uid
+        else:
+            raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    except HTTPException:
+        # Re-raise HTTPException as-is, don't convert to 500
+        raise
+    except (ValueError, TypeError, binascii.Error) as e:
+        raise HTTPException(status_code=401, detail=f"Invalid Basic Auth credentials: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    # --- End of Basic Auth Logic ---
 
 
 cached = {}
@@ -94,5 +119,7 @@ def timeit(func):
 
 
 def delete_account(uid: str):
-    auth.delete_user(uid)
+    # This function would now delete from your PostgreSQL database
+    from database.users import delete_user
+    delete_user(uid)
     return {"message": "User deleted"}

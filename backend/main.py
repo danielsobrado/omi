@@ -1,25 +1,56 @@
+import asyncio
 import json
 import os
 
-import firebase_admin
 from fastapi import FastAPI
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from modal import Image, App, asgi_app, Secret
-from routers import workflow, chat, firmware, plugins, transcribe, notifications, \
-    speech_profile, agents, users, trends, sync, apps, custom_auth, \
-    payment, integration, conversations, memories, mcp, oauth # Added oauth
-
+# Import all your existing and new routers
+from routers import (
+    workflow, chat, firmware, plugins, transcribe, notifications,
+    speech_profile, agents, users, trends, sync, apps, 
+    # custom_auth, # REMOVE
+    payment, integration, conversations, memories, mcp, 
+    # oauth, # REMOVE
+)
 from utils.other.timeout import TimeoutMiddleware
 
-if os.environ.get('SERVICE_ACCOUNT_JSON'):
-    service_account_info = json.loads(os.environ["SERVICE_ACCOUNT_JSON"])
-    credentials = firebase_admin.credentials.Certificate(service_account_info)
-    firebase_admin.initialize_app(credentials)
-else:
-    firebase_admin.initialize_app()
+# --- Database Initialization ---
+# Check which database is configured and initialize if necessary.
+if os.getenv("DATABASE_CHOICE") == "postgres":
+    from database.postgres.init_db import init_database
+    # This will create the database tables if they don't exist on startup.
+    init_database()
 
-app = FastAPI()
+# REMOVE THE ENTIRE FIREBASE INITIALIZATION BLOCK
+# No longer needed for authentication
 
+app = FastAPI(title="Omi Backend")
+
+# --- Local Cron Job Setup (Replaces Modal Cron) ---
+scheduler = AsyncIOScheduler()
+
+@app.on_event("startup")
+async def startup_event():
+    # Get the running event loop
+    loop = asyncio.get_running_loop()
+    
+    # Schedule the job to run every minute.
+    # Note: You'll need to install APScheduler and implement start_cron_job
+    # scheduler.add_job(
+    #     lambda: asyncio.run_coroutine_threadsafe(start_cron_job(), loop), 
+    #     'cron', 
+    #     minute='*'
+    # )
+    scheduler.start()
+    print("AsyncIOScheduler started for cron jobs.")
+
+@app.on_event("shutdown")
+def shutdown_event():
+    scheduler.shutdown()
+    print("AsyncIOScheduler shut down.")
+
+# --- Include all API Routers ---
 app.include_router(transcribe.router)
 app.include_router(conversations.router)
 app.include_router(memories.router)
@@ -38,11 +69,15 @@ app.include_router(firmware.router)
 app.include_router(sync.router)
 
 app.include_router(apps.router)
-app.include_router(custom_auth.router)
-app.include_router(oauth.router) # Added oauth router
+# app.include_router(custom_auth.router) # REMOVE
+# app.include_router(oauth.router) # REMOVE
 
 app.include_router(payment.router)
 app.include_router(mcp.router)
+
+@app.get("/health", tags=["Health"])
+def health_check():
+    return {"status": "healthy"}
 
 
 methods_timeout = {
@@ -52,32 +87,9 @@ methods_timeout = {
     "DELETE": os.environ.get('HTTP_DELETE_TIMEOUT'),
 }
 
-app.add_middleware(TimeoutMiddleware,methods_timeout=methods_timeout)
+app.add_middleware(TimeoutMiddleware, methods_timeout=methods_timeout)
 
-modal_app = App(
-    name='backend',
-    secrets=[Secret.from_name("gcp-credentials"), Secret.from_name('envs')],
-)
-image = (
-    Image.debian_slim()
-    .apt_install('ffmpeg', 'git', 'unzip')
-    .pip_install_from_requirements('requirements.txt')
-)
-
-
-@modal_app.function(
-    image=image,
-    keep_warm=0,
-    memory=(512, 1024),
-    cpu=2,
-    allow_concurrent_inputs=10,
-    timeout=60 * 10,
-)
-@asgi_app()
-def api():
-    return app
-
-
+# Create temporary directories if they don't exist
 paths = ['_temp', '_samples', '_segments', '_speech_profiles']
 for path in paths:
     if not os.path.exists(path):

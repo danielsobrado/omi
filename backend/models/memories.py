@@ -5,7 +5,7 @@ from typing import Optional, List
 
 from pydantic import BaseModel, Field, validator
 
-from database._client import document_id_from_seed
+from database.utils import document_id_from_seed
 
 
 class MemoryCategory(str, Enum):

@@ -1,5 +1,16 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime impo    docs_agent = Agent(
+        name="Omi Documentation Agent",
+        instructions=omi_documentation_prompt,
+        model="openai/gpt-4o-mini",
+    )
+    omi_agent = Agent(
+        name="Omi Agent",
+        instructions=f"You are a helpful assistant that answers questions from the user {uid}, using the tools you were provided.",
+        mcp_servers=[mcp_server],
+        model="openai/gpt-4o-mini",
+        model_settings=ModelSettings(
+            reasoning=Reasoning(effort="high"),        ), timezone
 from typing import AsyncGenerator, List, Optional, Any
 from agents import Agent, ModelSettings, Runner, trace
 from agents.mcp import MCPServer, MCPServerStdio
@@ -34,13 +45,13 @@ async def run(
     docs_agent = Agent(
         name="Omi Documentation Agent",
         instructions=omi_documentation_prompt,
-        model="o4-mini",
+        model="openai/gpt-4o-mini",
     )
     omi_agent = Agent(
         name="Omi Agent",
         instructions=f"You are a helpful assistant that answers questions from the user {uid}, using the tools you were provided.",
         mcp_servers=[mcp_server],
-        model="o4-mini",
+        model="openai/gpt-4o-mini",
         model_settings=ModelSettings(
             reasoning=Reasoning(effort="high"),  # summary="auto"
         ),

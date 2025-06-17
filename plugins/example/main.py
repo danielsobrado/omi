@@ -38,7 +38,7 @@ modal_app = App(
         # .apt_install('libgl1-mesa-glx', 'libglib2.0-0')
         .pip_install_from_requirements('requirements.txt')
     ),
-    keep_warm=1,  # need 7 for 1rps
+    min_containers=1,  # need 7 for 1rps
     memory=(128, 512),
     cpu=1,
     allow_concurrent_inputs=10,

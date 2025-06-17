@@ -2,10 +2,9 @@ import os
 from collections import defaultdict
 
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
-llm_mini = ChatOpenAI(model="gpt-4o-mini")
-embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+# Import configured LLM clients from centralized config
+from utils.llm.clients import llm_mini, embeddings
 
 from database.users import get_all_ratings
 from database.auth import get_user_from_uid

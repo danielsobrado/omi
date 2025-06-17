@@ -2,12 +2,11 @@ import os
 import threading
 
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 from models.conversation import Conversation
 
-llm_mini = ChatOpenAI(model='gpt-4o-mini')
-embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+# Import configured LLM clients from centralized config
+from utils.llm.clients import llm_mini, embeddings
 
 load_dotenv('../../.env')
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '../../' + os.getenv('GOOGLE_APPLICATION_CREDENTIALS')

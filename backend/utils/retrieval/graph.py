@@ -5,7 +5,6 @@ from typing import List, Optional, Tuple, AsyncGenerator
 
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain_core.messages import SystemMessage, AIMessage, HumanMessage
-from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.constants import END
 from langgraph.graph import START, StateGraph
@@ -37,9 +36,7 @@ from utils.llm.persona import answer_persona_question_stream
 from utils.other.chat_file import FileChatTool
 from utils.other.endpoints import timeit
 from utils.app_integrations import get_github_docs_content
-
-model = ChatOpenAI(model="gpt-4o-mini")
-llm_medium_stream = ChatOpenAI(model='gpt-4o', streaming=True)
+from utils.llm.clients import llm_medium_stream
 
 
 class StructuredFilters(TypedDict):

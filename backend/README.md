@@ -12,6 +12,19 @@ This README provides a quick setup guide for the Omi backend. For a comprehensiv
 2. You will need to have your own Google Cloud Project with Firebase enabled. If you've already set up Firebase for the Omi app, you're good to go. If not, please refer to the [Firebase Setup Guide](https://firebase.google.com/docs/projects/learn-more).
    - **IMPORTANT:** Make sure you have the [`Cloud Resource Manager API`](https://console.cloud.google.com/apis/library/cloudresourcemanager.googleapis.com), [`Firebase Management API`](https://console.cloud.google.com/apis/library/firebase.googleapis.com), and [`Cloud Firestore API`](https://console.developers.google.com/apis/api/firestore.googleapis.com/overview) enabled in the [Google Cloud API Console](https://console.cloud.google.com/apis/dashboard) **before proceeding to the next steps**. Failure to enable these APIs will result in authentication errors.
 
+### 2a. Choose Your Database
+
+This backend can run on either Google Firestore (default) or a self-hosted PostgreSQL database.
+
+-   **For Firestore**: No extra steps are needed. Continue with the setup.
+-   **For PostgreSQL**:
+    1.  Make sure you have Docker installed.
+    2.  Run a local PostgreSQL instance using Docker:
+        ```bash
+        docker run --name omi-postgres -e POSTGRES_USER=omi_user -e POSTGRES_PASSWORD=omi_password -e POSTGRES_DB=omi_db -p 5432:5432 -d postgres
+        ```
+    3.  In your `.env` file (created in a later step), you will set `DATABASE_CHOICE=postgres`.
+
 3. Run the following commands one by one to authenticate with Google Cloud:
    ```bash
    gcloud auth login
@@ -39,20 +52,21 @@ This README provides a quick setup guide for the Omi backend. For a comprehensiv
 
 8. Move to the backend directory: `cd backend`
 
-9. Create your environment file: `cp .env.template .env`
+9. Create your environment file: `cp .env.template .env`.
+   - **IMPORTANT**: If you are using PostgreSQL, open the `.env` file and set `DATABASE_CHOICE=postgres`. Ensure the `POSTGRES_URL` matches your setup.
 
 10. Set up Redis
     - [Upstash](https://console.upstash.com/) is recommended - sign up and create a free instance
 
 11. Add the necessary API keys in the `.env` file:
-    - [OpenAI API Key](https://platform.openai.com/settings/organization/api-keys)
+    - [OpenRouter API Key](https://openrouter.ai/keys) for LLM calls. Set this as `OPENROUTER_API_KEY`.
+    - **Embedding Provider**: Choose one of the following options by setting `EMBEDDING_PROVIDER`:
+      - **`openai`** (default): [OpenAI API Key](https://platform.openai.com/api-keys) - Set as `OPENAI_API_KEY`
+      - **`sentence-transformer`**: Local embeddings (no API key needed) - Configure `SENTENCE_TRANSFORMER_MODEL`
     - [Deepgram API Key](https://console.deepgram.com/api-keys)
     - Redis credentials from your [Upstash Console](https://console.upstash.com/)
     - Set `ADMIN_KEY` to a temporary value (e.g., `123`) for local development
-    - **IMPORTANT:** For Pinecone vector database:
-      - Make sure to set `PINECONE_INDEX_NAME` to the name of your Pinecone index
-      - If you don't have a Pinecone index yet, [create one in the Pinecone Console](https://app.pinecone.io/)
-      - The index should be created with the appropriate dimension setting (e.g., 1536 for OpenAI embeddings)
+    - **Note on Vector Database**: This setup now uses **ChromaDB**, which runs locally and stores its data in the `backend/_chroma_db/` directory. No API keys or cloud setup are required for the vector database.
 
 12. Install Python dependencies (choose one of the following approaches):
 

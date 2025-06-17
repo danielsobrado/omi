@@ -1,18 +1,26 @@
 import json
 import os
 
-import firebase_admin
 from fastapi import FastAPI
 
+import modal
 from modal import Image, App, asgi_app, Secret
 from routers import pusher
 
-if os.environ.get('SERVICE_ACCOUNT_JSON'):
-    service_account_info = json.loads(os.environ["SERVICE_ACCOUNT_JSON"])
-    credentials = firebase_admin.credentials.Certificate(service_account_info)
-    firebase_admin.initialize_app(credentials)
+# Initialize Firebase only if we're using Firestore database
+DATABASE_CHOICE = os.getenv("DATABASE_CHOICE", "firestore")
+if DATABASE_CHOICE == "firestore":
+    import firebase_admin
+    
+    if os.environ.get('SERVICE_ACCOUNT_JSON'):
+        service_account_info = json.loads(os.environ["SERVICE_ACCOUNT_JSON"])
+        credentials = firebase_admin.credentials.Certificate(service_account_info)
+        firebase_admin.initialize_app(credentials)
+    else:
+        firebase_admin.initialize_app()
+    print(f"Firebase Admin initialized for database choice: {DATABASE_CHOICE}")
 else:
-    firebase_admin.initialize_app()
+    print(f"Skipping Firebase Admin initialization for database choice: {DATABASE_CHOICE}")
 
 app = FastAPI()
 app.include_router(pusher.router)
@@ -30,16 +38,15 @@ image = (
 
 @modal_app.function(
     image=image,
-    keep_warm=2,
+    min_containers=2,
     memory=(512, 1024),
     cpu=2,
-    allow_concurrent_inputs=10,
     timeout=60 * 10,
 )
+@modal.concurrent(max_inputs=10)
 @asgi_app()
 def api():
     return app
-
 
 paths = ['_temp', '_samples', '_segments', '_speech_profiles']
 for path in paths:

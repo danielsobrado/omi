@@ -16,7 +16,7 @@ OPTIMIZATION_ROUNDS = 5
 MIN_QUALITY_SCORE = 4  # Minimum score to consider an example high quality
 LABEL_STORE_PATH = "label_store.jsonl"
 OPTIMIZED_PROMPT_PATH = "optimized_prompts.json"
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 DUMMY_MODE = os.getenv("DUMMY_MODE", "false").lower() in ("true", "1", "yes")
 
 # Custom metric for evaluating memory quality
@@ -129,7 +129,7 @@ def optimize_instructions(base_instructions, examples, num_optimized=3):
         list: List of optimized instruction variants
     """
     # If we're in dummy mode or don't have API key, return a dummy optimization
-    if DUMMY_MODE or not OPENAI_API_KEY:
+    if DUMMY_MODE or not OPENROUTER_API_KEY:
         print("Using dummy optimization since we're in DUMMY_MODE or missing API key")
         return [
             base_instructions + "\n\nOptimized for better memory generation with example patterns.",
@@ -149,8 +149,11 @@ def optimize_instructions(base_instructions, examples, num_optimized=3):
             if 'feedback' in ex and ex['feedback']:
                 examples_text += f"Feedback: {ex['feedback']}\n"
                 
-        # Set up OpenAI client
-        client = openai.OpenAI(api_key=OPENAI_API_KEY)
+        # Set up OpenRouter client
+        client = openai.OpenAI(
+            api_key=os.getenv("OPENROUTER_API_KEY"),
+            base_url="https://openrouter.ai/api/v1"
+        )
         
         # Create the prompt for optimizing instructions
         system_prompt = """You are an expert in optimizing prompts for AI models. Your task is to analyze the original instructions for generating memories from conversations, and create an improved version that incorporates patterns from high-quality examples.
@@ -175,9 +178,9 @@ Based on these examples and the original instructions, generate an improved inst
 Focus on what makes the highly-rated examples good and incorporate those insights.
 """
         
-        # Call OpenAI for instruction optimization
+        # Call OpenRouter for instruction optimization
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="openai/gpt-4o",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}

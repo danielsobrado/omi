@@ -1,47 +1,51 @@
 import json
 import os
-# noinspection PyUnresolvedReferences
 from typing import List
 
-# noinspection PyUnresolvedReferences
 import numpy as np
-# noinspection PyUnresolvedReferences
 import plotly.graph_objects as go
-# noinspection PyUnresolvedReferences
 import umap
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
-from pinecone import Pinecone
-# noinspection PyUnresolvedReferences
-from plotly.subplots import make_subplots
+import chromadb
 
-# noinspection PyUnresolvedReferences
 from models.conversation import Conversation
 
 load_dotenv('../../.env')
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '../../' + os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
 
-if os.getenv('PINECONE_API_KEY') is not None:
-    pc = Pinecone(api_key=os.getenv('PINECONE_API_KEY', ''))
-    index = pc.Index(os.getenv('PINECONE_INDEX_NAME', ''))
-else:
-    index = None
+# --- ChromaDB Client Initialization ---
+db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '_chroma_db')
+client = chromadb.PersistentClient(path=db_path)
+collection = client.get_or_create_collection(
+    name=os.getenv("CHROMA_COLLECTION_NAME", "omi_conversations")
+)
 
 import database.conversations as conversations_db
-# noinspection PyUnresolvedReferences
 import database.memories as facts_d
 
 uid = 'viUv7GtdoHXbK1UBCDlPuTDuPgJ2'
 
 openai_embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
 
-
-def query_vectors(query: str, uid: str, k: int = 1000) -> List[str]:
+def query_vectors(query: str, uid: str, k: int = 1000) -> List[List]:
+    """Queries ChromaDB and returns [id, vector] pairs."""
     xq = openai_embeddings.embed_query(query)
-    xc = index.query(vector=xq, top_k=k, filter={'uid': uid}, namespace="ns1", include_values=True)
+    
+    results = collection.query(
+        query_embeddings=[xq],
+        n_results=k,
+        where={'uid': uid},
+        include=["metadatas", "embeddings"]
+    )
+    
     data = []
-    for item in xc['matches']:
-        data.append([item['id'].replace(f'{uid}-', ''), item['values']])
+    if results['ids'][0]:
+        for i in range(len(results['ids'][0])):
+            memory_id = results['metadatas'][0][i]['memory_id']
+            vector = results['embeddings'][0][i]
+            data.append([memory_id, vector])
+            
     print('Found:', len(data), 'vectors')
     return data
 
