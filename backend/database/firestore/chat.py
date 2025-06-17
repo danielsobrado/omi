@@ -1,14 +1,61 @@
+import copy
 import uuid
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 from google.cloud import firestore
 from google.cloud.firestore_v1 import FieldFilter
 
 from models.chat import Message
+from utils import encryption
 from utils.other.endpoints import timeit
 from .client import db
 
+
+# *********************************
+# ******* ENCRYPTION HELPERS ******
+# *********************************
+
+def _encrypt_chat_data(chat_data: Dict[str, Any], uid: str) -> Dict[str, Any]:
+    data = copy.deepcopy(chat_data)
+
+    if 'text' in data and isinstance(data['text'], str):
+        data['text'] = encryption.encrypt(data['text'], uid)
+    return data
+
+
+def _decrypt_chat_data(chat_data: Dict[str, Any], uid: str) -> Dict[str, Any]:
+    data = copy.deepcopy(chat_data)
+
+    if 'text' in data and isinstance(data['text'], str):
+        try:
+            data['text'] = encryption.decrypt(data['text'], uid)
+        except Exception:
+            pass
+
+    return data
+
+
+def _prepare_data_for_write(data: Dict[str, Any], uid: str, level: str) -> Dict[str, Any]:
+    if level == 'enhanced':
+        return _encrypt_chat_data(data, uid)
+    return data
+
+
+def _prepare_message_for_read(message_data: Optional[Dict[str, Any]], uid: str) -> Optional[Dict[str, Any]]:
+    if not message_data:
+        return None
+
+    level = message_data.get('data_protection_level')
+    if level == 'enhanced':
+        return _decrypt_chat_data(message_data, uid)
+
+    return message_data
+
+
+# *****************************
+# ********** CRUD *************
+# *****************************
 
 @timeit
 def add_message(uid: str, message_data: dict):
@@ -165,10 +212,15 @@ def get_message(uid: str, message_id: str) -> tuple[Message, str] | None:
     user_ref = db.collection('users').document(uid)
     message_ref = user_ref.collection('messages').where('id', '==', message_id).limit(1).stream()
     message_doc = next(message_ref, None)
-    message = Message(**message_doc.to_dict()) if message_doc else None
-
-    if not message:
+    if not message_doc:
         return None
+
+    message_data = message_doc.to_dict()
+    if not message_data:
+        return None
+
+    decrypted_data = _prepare_message_for_read(message_data, uid)
+    message = Message(**decrypted_data)
 
     return message, message_doc.id
 
