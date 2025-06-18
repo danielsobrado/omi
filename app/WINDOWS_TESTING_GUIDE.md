@@ -332,3 +332,201 @@ When reporting Windows-specific issues, include:
 ---
 
 This guide should be updated as new Windows-specific features are added or issues are discovered during testing.
+
+# Project Continuation Summary for Windows Machine
+
+## Current Status (Completed on Linux)
+
+### ✅ What Was Accomplished
+1. **Flutter Environment Setup**: Flutter 3.32.4 installed and configured
+2. **Windows Desktop Support**: Enabled via `flutter config --enable-windows-desktop`
+3. **Environment Files Created**: Both `.dev.env` and `.prod.env` files with dummy values
+4. **Code Generation**: Successfully ran `dart run build_runner build` to generate:
+   - `lib/env/dev_env.g.dart`
+   - `lib/env/prod_env.g.dart`
+   - `lib/firebase_options_dev.dart`
+   - `lib/firebase_options_prod.dart`
+   - Other generated files via build_runner
+5. **Dependencies Resolved**: All Flutter dependencies are downloaded and ready
+6. **Linux Build Verified**: Successfully built `flutter build linux --debug` confirming Flutter code is working
+7. **Windows Files Confirmed**: Native Windows audio capture files exist:
+   - `windows/runner/windows_audio_capture.cpp`
+   - `windows/runner/windows_audio_capture.h`
+   - `windows/CMakeLists.txt`
+
+### 📁 Current Environment Configuration
+```bash
+# .dev.env (configure with real values on Windows)
+API_BASE_URL=https://localhost:8000
+OPENAI_API_KEY=dummy_dev_key
+GOOGLE_MAPS_API_KEY=dummy_dev_key
+GOOGLE_CLIENT_ID=dummy_dev_client_id
+GOOGLE_CLIENT_SECRET=dummy_dev_secret
+# ... other keys with dummy values
+```
+
+## 🚀 Next Steps for Windows Machine
+
+### Step 1: Windows Development Environment Setup
+```cmd
+# Required Software (install in this order):
+1. Git for Windows
+2. Visual Studio 2022 Community Edition with:
+   - C++ CMake tools for Visual Studio
+   - Windows 10/11 SDK (latest version)
+   - MSVC v143 compiler toolset
+3. Flutter SDK (3.32.4 or later)
+4. Windows Terminal (optional but recommended)
+```
+
+### Step 2: Project Transfer and Setup
+```cmd
+# 1. Clone/copy the project to Windows machine
+git clone <your-repository-url>
+cd omi/app
+
+# 2. Configure Flutter
+flutter config --enable-windows-desktop
+flutter doctor -v
+
+# 3. Verify environment files exist (they should from Linux work)
+dir .dev.env .prod.env
+
+# 4. Install dependencies
+flutter pub get
+
+# 5. If build_runner files are missing, regenerate:
+dart run build_runner build --delete-conflicting-outputs
+```
+
+### Step 3: Windows Compilation Test
+```cmd
+# Debug build (recommended first)
+flutter build windows --debug
+
+# If successful, try release build
+flutter build windows --release
+
+# Run the app
+cd build\windows\runner\Debug
+omi.exe
+```
+
+### Step 4: Environment Configuration (IMPORTANT)
+Update the `.dev.env` file with real API keys:
+```env
+API_BASE_URL=https://your-backend-url.com
+OPENAI_API_KEY=your_real_openai_key
+GOOGLE_MAPS_API_KEY=your_real_google_maps_key
+GOOGLE_CLIENT_ID=your_real_google_client_id
+GOOGLE_CLIENT_SECRET=your_real_google_client_secret
+INSTABUG_API_KEY=your_real_instabug_key
+MIXPANEL_PROJECT_TOKEN=your_real_mixpanel_token
+GROWTHBOOK_API_KEY=your_real_growthbook_key
+INTERCOM_APP_ID=your_real_intercom_id
+INTERCOM_IOS_API_KEY=your_real_intercom_ios_key
+INTERCOM_ANDROID_API_KEY=your_real_intercom_android_key
+POSTHOG_API_KEY=your_real_posthog_key
+```
+
+After updating, regenerate files:
+```cmd
+dart run build_runner build --delete-conflicting-outputs
+```
+
+## 🔧 Windows-Specific Audio Testing
+
+### Audio Capture Verification
+The app includes sophisticated Windows audio capture (`windows_audio_capture.cpp`) using WASAPI. Test these scenarios:
+
+1. **Microphone Permission**: First launch should prompt for microphone access
+2. **Device Switching**: Test hot-plugging audio devices
+3. **Audio Quality**: Verify 16kHz sample rate capture
+4. **Background Recording**: Test app backgrounding during recording
+5. **Multiple Audio Sources**: Test with different microphone types
+
+### Performance Monitoring
+```cmd
+# Monitor during testing:
+# - CPU usage during audio capture
+# - Memory consumption over time
+# - Audio buffer underruns
+# - UI responsiveness during recording
+```
+
+## 🐛 Troubleshooting Guide
+
+### Common Windows Build Issues
+```cmd
+# CMake not found
+# Solution: Install Visual Studio C++ tools
+
+# Windows SDK missing
+# Solution: Install Windows SDK via Visual Studio Installer
+
+# Audio capture fails
+# Solution: Check Windows Privacy Settings > Microphone
+
+# App crashes on startup
+# Solution: Check Windows Event Viewer for crash details
+```
+
+### Flutter Doctor Issues
+```cmd
+# Run and fix all issues:
+flutter doctor -v
+
+# Common fixes:
+# - Accept Android licenses: flutter doctor --android-licenses
+# - Install missing components via Visual Studio Installer
+```
+
+## 📋 Testing Checklist
+
+### Basic Functionality
+- [ ] App launches without crashes
+- [ ] UI renders correctly on Windows
+- [ ] Microphone permission dialog appears
+- [ ] Audio recording starts/stops properly
+- [ ] Settings can be accessed and modified
+
+### Windows-Specific Features
+- [ ] Native Windows audio capture works
+- [ ] Window resizing functions properly
+- [ ] System notifications display correctly
+- [ ] High DPI scaling works (test on 4K monitor)
+- [ ] Taskbar integration works
+
+### Integration Testing
+- [ ] Backend API connectivity (update API_BASE_URL first)
+- [ ] Authentication flow (Google Sign-In)
+- [ ] File system operations (recordings save properly)
+- [ ] Network handling (offline/online transitions)
+
+## 📞 Support Resources
+
+If you encounter issues:
+1. Check the complete testing guide sections above
+2. Run `flutter doctor -v` and resolve all issues
+3. Check Windows Event Viewer for crash logs
+4. Monitor Task Manager for resource usage
+5. Test with Windows Defender/antivirus disabled temporarily
+
+## 🎯 Success Criteria
+
+The Windows app is ready for production testing when:
+- ✅ Clean build with no errors
+- ✅ Audio capture works reliably
+- ✅ UI is responsive and scales properly
+- ✅ No memory leaks during extended use
+- ✅ Proper error handling for edge cases
+
+---
+
+**Last Updated**: Built successfully on Linux (Flutter 3.32.4), ready for Windows compilation and testing.
+
+**Project State**: All dependencies resolved, code generated, environment configured with dummy values (update with real API keys).
+
+**Critical Path**: The Windows audio capture component (`windows_audio_capture.cpp`) is the most important feature to test as it's platform-specific and cannot be verified on Linux.
+
+---
