@@ -7,11 +7,16 @@ Run this after starting the server to verify everything is working.
 import asyncio
 import sys
 import os
-import requests
-import json
 
 async def test_unified_backend():
     """Test the unified backend endpoints"""
+    
+    # Check if requests is available
+    try:
+        import requests
+    except ImportError:
+        print("❌ requests library not available. Install with: pip install requests")
+        return False
     
     base_url = "http://localhost:8080"
     
@@ -28,9 +33,10 @@ async def test_unified_backend():
             return False
     except Exception as e:
         print(f"❌ Main health endpoint: Failed to connect ({e})")
+        print("💡 Make sure the server is running: uvicorn main:app --reload")
         return False
     
-    # Test modal services health endpoint
+    # Test modal services health endpoint  
     try:
         response = requests.get(f"{base_url}/health", timeout=10)
         if response.status_code == 200:
@@ -39,6 +45,25 @@ async def test_unified_backend():
             print(f"❌ Modal services health endpoint: Failed ({response.status_code})")
     except Exception as e:
         print(f"❌ Modal services health endpoint: Failed ({e})")
+    
+    # Test ML dependencies status
+    try:
+        response = requests.get(f"{base_url}/status", timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            ml_available = data.get('ml_dependencies_available', False)
+            if ml_available:
+                print("✅ ML dependencies: Available")
+                gpu_available = data.get('gpu_available', False)
+                print(f"🖥️  GPU available: {'Yes' if gpu_available else 'No'}")
+            else:
+                print("⚠️  ML dependencies: Not installed")
+                install_cmd = data.get('install_command', 'pip install torch speechbrain pyannote.audio pydub')
+                print(f"💡 Install with: {install_cmd}")
+        else:
+            print(f"❌ ML status endpoint: Failed ({response.status_code})")
+    except Exception as e:
+        print(f"❌ ML status endpoint: Failed ({e})")
     
     # Test API documentation
     try:
@@ -57,7 +82,7 @@ async def test_unified_backend():
     print("\n🔧 Environment Check:")
     env_vars = [
         "DATABASE_CHOICE",
-        "POSTGRES_URL",
+        "POSTGRES_URL", 
         "DEEPGRAM_API_KEY",
         "HUGGINGFACE_TOKEN"
     ]
@@ -73,9 +98,10 @@ async def test_unified_backend():
     
     print("\n📝 Migration Status:")
     print("✅ Modal dependencies removed")
-    print("✅ Unified FastAPI application running")
-    print("✅ APScheduler cron jobs active")
-    print("✅ ML models will load on first use")
+    print("✅ Unified FastAPI application structure")
+    print("✅ Conditional imports for ML dependencies")
+    print("✅ Graceful degradation when dependencies missing")
+    print("✅ API endpoints preserved and enhanced")
     
     return True
 

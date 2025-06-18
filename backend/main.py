@@ -3,7 +3,16 @@ import json
 import os
 
 from fastapi import FastAPI
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+# Conditional import for APScheduler
+try:
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+    SCHEDULER_AVAILABLE = True
+except ImportError:
+    print("Warning: APScheduler not available. Cron jobs will be disabled.")
+    print("Install with: pip install apscheduler")
+    SCHEDULER_AVAILABLE = False
+    AsyncIOScheduler = None
 
 # Import all your existing and new routers
 from routers import (
@@ -30,19 +39,25 @@ if os.getenv("DATABASE_CHOICE") == "postgres":
 app = FastAPI(title="Omi Backend")
 
 # --- Local Cron Job Setup (Replaces Modal Cron) ---
-scheduler = AsyncIOScheduler()
+scheduler = AsyncIOScheduler() if SCHEDULER_AVAILABLE else None
 
 @app.on_event("startup")
 async def startup_event():
-    # Schedule the job to run every minute, just like the Modal Cron
-    scheduler.add_job(start_cron_job, 'cron', minute='*')
-    scheduler.start()
-    print("AsyncIOScheduler started for cron jobs.")
+    if SCHEDULER_AVAILABLE and scheduler:
+        # Schedule the job to run every minute, just like the Modal Cron
+        scheduler.add_job(start_cron_job, 'cron', minute='*')
+        scheduler.start()
+        print("AsyncIOScheduler started for cron jobs.")
+    else:
+        print("APScheduler not available. Cron jobs disabled. Install with: pip install apscheduler")
 
 @app.on_event("shutdown")
 def shutdown_event():
-    scheduler.shutdown()
-    print("AsyncIOScheduler shut down.")
+    if SCHEDULER_AVAILABLE and scheduler:
+        scheduler.shutdown()
+        print("AsyncIOScheduler shut down.")
+    else:
+        print("No scheduler to shut down.")
 
 # --- Include all API Routers ---
 app.include_router(transcribe.router)

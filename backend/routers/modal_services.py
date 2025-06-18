@@ -5,12 +5,25 @@ from collections import defaultdict
 from typing import List, Optional
 from functools import lru_cache
 
-import torch
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException
 from pydantic import BaseModel
-from pydub import AudioSegment
-from speechbrain.inference.speaker import SpeakerRecognition
-from pyannote.audio import Pipeline
+
+# Conditional imports for ML dependencies
+try:
+    import torch
+    from pydub import AudioSegment
+    from speechbrain.inference.speaker import SpeakerRecognition
+    from pyannote.audio import Pipeline
+    ML_DEPENDENCIES_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: ML dependencies not available: {e}")
+    print("Speech profile and VAD endpoints will not work until dependencies are installed.")
+    ML_DEPENDENCIES_AVAILABLE = False
+    # Create mock classes to prevent import errors
+    torch = None
+    AudioSegment = None
+    SpeakerRecognition = None
+    Pipeline = None
 
 from utils.stt.speech_profile import get_speech_profile_expanded, get_people_with_speech_samples
 
@@ -29,6 +42,12 @@ class ResponseItem(BaseModel):
 @lru_cache(maxsize=1)
 def get_speech_model():
     """This function loads the speech model on its first call and caches the result."""
+    if not ML_DEPENDENCIES_AVAILABLE:
+        raise HTTPException(
+            status_code=503, 
+            detail="ML dependencies not installed. Please install: pip install torch speechbrain"
+        )
+    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Loading speech profile model on: {device}")
     model = SpeakerRecognition.from_hparams(
@@ -42,6 +61,12 @@ def get_speech_model():
 @lru_cache(maxsize=1)
 def get_vad_model():
     """This function loads the VAD model on its first call and caches the result."""
+    if not ML_DEPENDENCIES_AVAILABLE:
+        raise HTTPException(
+            status_code=503, 
+            detail="ML dependencies not installed. Please install: pip install pyannote.audio torch"
+        )
+    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Loading VAD model on: {device}")
     vad = Pipeline.from_pretrained(
@@ -63,6 +88,12 @@ def sample_same_speaker_as_segment(sample_audio: str, segment: str) -> float:
 def classify_segments(
         audio_file_path: str, profile_path: str, people: List[dict], segments: List[TranscriptSegment]
 ):
+    if not ML_DEPENDENCIES_AVAILABLE:
+        raise HTTPException(
+            status_code=503, 
+            detail="ML dependencies not installed. Cannot process audio segments."
+        )
+        
     matches = [{'is_user': False, 'person_id': None}] * len(segments)
     if not profile_path:
         return matches
@@ -172,4 +203,34 @@ def vad(file: UploadFile = File(...)):
 @router.get("/health", tags=["Modal Services"])
 def modal_services_health():
     """Health check for modal services"""
-    return {"status": "healthy", "service": "modal_services"}
+    return {
+        "status": "healthy", 
+        "service": "modal_services",
+        "ml_dependencies_available": ML_DEPENDENCIES_AVAILABLE,
+        "dependencies_needed": [
+            "torch", 
+            "speechbrain", 
+            "pyannote.audio", 
+            "pydub"
+        ] if not ML_DEPENDENCIES_AVAILABLE else None
+    }
+
+@router.get("/status", tags=["Modal Services"])
+def ml_dependencies_status():
+    """Check ML dependencies status"""
+    status = {
+        "ml_dependencies_available": ML_DEPENDENCIES_AVAILABLE,
+        "gpu_available": None,
+        "models_ready": False
+    }
+    
+    if ML_DEPENDENCIES_AVAILABLE:
+        try:
+            status["gpu_available"] = torch.cuda.is_available()
+            status["cuda_devices"] = torch.cuda.device_count() if torch.cuda.is_available() else 0
+        except Exception as e:
+            status["gpu_error"] = str(e)
+    else:
+        status["install_command"] = "pip install torch speechbrain pyannote.audio pydub"
+        
+    return status
