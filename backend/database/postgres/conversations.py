@@ -19,11 +19,14 @@ def create_conversation(uid: str, data: dict):
         db.close()
 
 
-def get_conversation(conversation_id: str):
-    """Get conversation by ID"""
+def get_conversation(uid: str, conversation_id: str):
+    """Get conversation by ID for a specific user"""
     db = get_db_session()
     try:
-        conversation = db.query(ConversationModel).filter(ConversationModel.id == conversation_id).first()
+        conversation = db.query(ConversationModel).filter(
+            ConversationModel.id == conversation_id,
+            ConversationModel.uid == uid
+        ).first()
         if conversation:
             return {c.name: getattr(conversation, c.name) for c in conversation.__table__.columns}
         return None
