@@ -5,15 +5,26 @@ from typing import Dict
 
 import typesense
 
-client = typesense.Client({
-    'nodes': [{
-        'host': os.getenv('TYPESENSE_HOST'),
-        'port': os.getenv('TYPESENSE_HOST_PORT'),
-        'protocol': 'https'
-    }],
-    'api_key': os.getenv('TYPESENSE_API_KEY'),
-    'connection_timeout_seconds': 2
-})
+# Only initialize client if Typesense credentials are provided
+client = None
+typesense_api_key = os.getenv('TYPESENSE_API_KEY')
+typesense_host = os.getenv('TYPESENSE_HOST')
+typesense_port = os.getenv('TYPESENSE_HOST_PORT')
+
+if typesense_api_key and typesense_host and typesense_port:
+    try:
+        client = typesense.Client({
+            'nodes': [{
+                'host': typesense_host,
+                'port': typesense_port,
+                'protocol': 'https'
+            }],
+            'api_key': typesense_api_key,
+            'connection_timeout_seconds': 2
+        })
+    except Exception as e:
+        print(f"Warning: Failed to initialize Typesense client: {e}")
+        client = None
 
 
 def search_conversations(
@@ -25,6 +36,16 @@ def search_conversations(
         start_date: int = None,
         end_date: int = None,
 ) -> Dict:
+    # If Typesense is not configured, return empty results
+    if client is None:
+        print("Warning: Typesense is not configured, returning empty search results")
+        return {
+            'items': [],
+            'total_pages': 0,
+            'current_page': page,
+            'per_page': per_page
+        }
+    
     try:
 
         filter_by = f'userId:={uid}'

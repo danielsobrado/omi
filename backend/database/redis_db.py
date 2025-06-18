@@ -5,13 +5,23 @@ from typing import List, Union, Optional
 
 import redis
 
-r = redis.Redis(
-    host=os.getenv('REDIS_DB_HOST'),
-    port=int(os.getenv('REDIS_DB_PORT')) if os.getenv('REDIS_DB_PORT') is not None else 6379,
-    username='default',
-    password=os.getenv('REDIS_DB_PASSWORD'),
-    health_check_interval=30
-)
+# Try to connect to Redis, but handle failures gracefully
+try:
+    r = redis.Redis(
+        host=os.getenv('REDIS_DB_HOST'),
+        port=int(os.getenv('REDIS_DB_PORT')) if os.getenv('REDIS_DB_PORT') is not None else 6379,
+        username='default',
+        password=os.getenv('REDIS_DB_PASSWORD'),
+        health_check_interval=30
+    )
+    # Test the connection
+    r.ping()
+    REDIS_AVAILABLE = True
+    print("Redis connection established successfully")
+except Exception as e:
+    print(f"Warning: Redis connection failed: {e}")
+    r = None
+    REDIS_AVAILABLE = False
 
 
 def try_catch_decorator(func):
@@ -386,19 +396,41 @@ def get_public_conversations() -> List[str]:
 
 
 def set_in_progress_conversation_id(uid: str, conversation_id: str, ttl: int = 150):
-    r.set(f'users:{uid}:in_progress_memory_id', conversation_id)
-    r.expire(f'users:{uid}:in_progress_memory_id', ttl)
+    if not REDIS_AVAILABLE or r is None:
+        print("Warning: Redis not available, cannot set in_progress_conversation_id")
+        return
+    
+    try:
+        r.set(f'users:{uid}:in_progress_memory_id', conversation_id)
+        r.expire(f'users:{uid}:in_progress_memory_id', ttl)
+    except Exception as e:
+        print(f"Warning: Redis error in set_in_progress_conversation_id: {e}")
 
 
 def remove_in_progress_conversation_id(uid: str):
-    r.delete(f'users:{uid}:in_progress_memory_id')
+    if not REDIS_AVAILABLE or r is None:
+        print("Warning: Redis not available, cannot remove in_progress_conversation_id")
+        return
+    
+    try:
+        r.delete(f'users:{uid}:in_progress_memory_id')
+    except Exception as e:
+        print(f"Warning: Redis error in remove_in_progress_conversation_id: {e}")
 
 
 def get_in_progress_conversation_id(uid: str) -> str:
-    conversation_id = r.get(f'users:{uid}:in_progress_memory_id')
-    if not conversation_id:
+    if not REDIS_AVAILABLE or r is None:
+        print("Warning: Redis not available, returning empty conversation ID")
         return ''
-    return conversation_id.decode()
+    
+    try:
+        conversation_id = r.get(f'users:{uid}:in_progress_memory_id')
+        if not conversation_id:
+            return ''
+        return conversation_id.decode()
+    except Exception as e:
+        print(f"Warning: Redis error in get_in_progress_conversation_id: {e}")
+        return ''
 
 
 def set_user_webhook_db(uid: str, wtype: str, url: str):

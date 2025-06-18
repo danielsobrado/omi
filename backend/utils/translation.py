@@ -8,10 +8,19 @@ translation_cache = OrderedDict()
 MAX_CACHE_SIZE = 1000
 PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT")
 
-# Initialize the translation client globally
-client = translate_v3.TranslationServiceClient()
-parent = f"projects/{PROJECT_ID}/locations/global"
-mime_type = "text/plain"
+# Initialize the translation client globally with error handling
+try:
+    client = translate_v3.TranslationServiceClient()
+    parent = f"projects/{PROJECT_ID}/locations/global"
+    mime_type = "text/plain"
+    TRANSLATION_AVAILABLE = True
+    print("Google Cloud Translation client initialized successfully")
+except Exception as e:
+    print(f"Warning: Failed to initialize Google Cloud Translation client: {e}")
+    client = None
+    parent = None
+    mime_type = "text/plain"
+    TRANSLATION_AVAILABLE = False
 
 def detect_language(text: str) -> str | None:
     """
@@ -24,6 +33,10 @@ def detect_language(text: str) -> str | None:
         The language code of the detected language (e.g., 'en', 'vi', 'fr') if confidence >= 1,
         or None if no language with sufficient confidence is found
     """
+    if not TRANSLATION_AVAILABLE:
+        print("Warning: Translation service not available, language detection skipped")
+        return None
+        
     try:
         # Call the Google Cloud Translate API to detect language
         response = client.detect_language(
@@ -59,6 +72,10 @@ def translate_text(dest_language: str, text: str) -> str:
     Returns:
         The translated text as a string
     """
+    if not TRANSLATION_AVAILABLE:
+        print(f"Warning: Translation service not available, returning original text")
+        return text
+        
     # Generate hash for the text
     text_hash = hashlib.md5(text.encode()).hexdigest()
 

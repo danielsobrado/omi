@@ -17,9 +17,10 @@ except ImportError:
 # Import all your existing and new routers
 from routers import (
     workflow, chat, firmware, plugins, transcribe, notifications,
-    speech_profile, agents, users, trends, sync, apps, 
+    speech_profile, agents, users, trends, sync, # apps, 
     # custom_auth, # REMOVE
-    payment, integration, conversations, memories, mcp, 
+    # payment,  # Temporarily disabled due to missing PostgreSQL implementation
+    integration, conversations, memories, mcp, 
     # oauth, # REMOVE
     modal_services,  # NEW: Contains speaker identification and VAD
 )
@@ -78,11 +79,11 @@ app.include_router(trends.router)
 app.include_router(firmware.router)
 app.include_router(sync.router)
 
-app.include_router(apps.router)
+# app.include_router(apps.router)  # Temporarily disabled due to missing PostgreSQL implementation
 # app.include_router(custom_auth.router) # REMOVE
 # app.include_router(oauth.router) # REMOVE
 
-app.include_router(payment.router)
+# app.include_router(payment.router)  # Temporarily disabled due to missing PostgreSQL implementation
 app.include_router(mcp.router)
 
 @app.get("/health", tags=["Health"])
