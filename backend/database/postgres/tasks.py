@@ -50,6 +50,20 @@ def get_task(task_id: str):
         db.close()
 
 
+def get_task_by_action_request(action: str, request_id: str):
+    """Get a task by its action and request_id"""
+    db = get_db_session()
+    try:
+        task = db.query(TaskModel).filter(
+            and_(TaskModel.action == action, TaskModel.request_id == request_id)
+        ).first()
+        if task:
+            return {c.name: getattr(task, c.name) for c in task.__table__.columns}
+        return None
+    finally:
+        db.close()
+
+
 def update_task(task_id: str, task_data: dict):
     """Update a task"""
     db = get_db_session()
@@ -68,17 +82,7 @@ def update_task(task_id: str, task_data: dict):
 
 def complete_task(task_id: str):
     """Mark a task as completed"""
-    db = get_db_session()
-    try:
-        task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
-        if task:
-            task.completed = True
-            task.completed_at = datetime.utcnow()
-            db.commit()
-            return True
-        return False
-    finally:
-        db.close()
+    return update_task(task_id, {'completed': True, 'completed_at': datetime.utcnow()})
 
 
 def delete_task(task_id: str):

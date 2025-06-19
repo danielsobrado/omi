@@ -1,5 +1,60 @@
 # Windows App Testing Guide
 
+## 🎯 Project Continuation Summary for Windows Machine
+
+### What's Ready ✅
+- **Flutter Code Verified**: Linux build successful, confirming core functionality
+- **Dependencies Resolved**: All packages and environment files properly configured
+- **Native Windows Audio**: Audio capture code (`windows/audio_capture_windows.cpp`) confirmed present
+- **Code Generation Complete**: `build_runner` output ready, no regeneration needed
+- **Project Structure**: All required files and directories in place
+
+### Your Next Steps 🚀
+1. **Transfer Project**: Copy entire project to Windows development machine
+2. **Install Development Tools**:
+   ```powershell
+   # Install Visual Studio 2022 with C++ development tools
+   # Install Flutter SDK for Windows
+   # Install Git for Windows
+   ```
+3. **Update Configuration**: Replace placeholder API keys in `.dev.env` with real values
+4. **Build Project**: Run `flutter build windows --debug`
+5. **Test Audio Functionality**: Verify WASAPI audio integration works correctly
+
+### Critical Testing Points 🔍
+- **Audio Capture Permissions**: Windows-specific microphone access dialogs
+- **WASAPI Integration**: Native Windows audio component functionality  
+- **Performance Monitoring**: CPU/memory usage during extended recording sessions
+- **UI Scaling**: Test on different DPI settings (100%, 125%, 150%, 200%)
+- **Device Compatibility**: Test with various audio input devices
+
+### Quick Start Commands
+```powershell
+# Navigate to project
+cd C:\Dev\omi\app
+
+# Verify Flutter setup
+flutter doctor -v
+
+# Clean and rebuild
+flutter clean
+flutter pub get
+
+# Build for Windows
+flutter build windows --debug
+
+# Run the application
+cd build\windows\runner\Debug
+.\omi.exe
+```
+
+### Environment Files Status
+- `.dev.env` - Created (update API keys)
+- `pubspec.yaml` - Dependencies resolved
+- Windows build configuration - Ready
+
+---
+
 This guide provides comprehensive instructions for testing the Omi Windows application, including setup, testing procedures, and troubleshooting.
 
 ## Prerequisites

@@ -190,3 +190,5 @@ omiGlass/.expo
 /backend/logs/
 app/.fvm/
 app/android/.kotlin/
+sdks/react-native/example/package-lock.json
+plugins/apps-js/package-lock.json
