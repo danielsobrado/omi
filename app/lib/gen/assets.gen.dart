@@ -53,15 +53,15 @@ class $AssetsFontsGen {
 
   /// List of all assets
   List<String> get values => [
-        sfprodisplayblackitalic,
-        sfprodisplaybold,
-        sfprodisplayheavyitalic,
-        sfprodisplaylightitalic,
-        sfprodisplaymedium,
-        sfprodisplayregular,
-        sfprodisplaysemibolditalic,
-        sfprodisplaythinitalic
-      ];
+    sfprodisplayblackitalic,
+    sfprodisplaybold,
+    sfprodisplayheavyitalic,
+    sfprodisplaylightitalic,
+    sfprodisplaymedium,
+    sfprodisplayregular,
+    sfprodisplaysemibolditalic,
+    sfprodisplaythinitalic,
+  ];
 }
 
 class $AssetsImagesGen {
@@ -269,61 +269,61 @@ class $AssetsImagesGen {
 
   /// List of all assets
   List<dynamic> get values => [
-        aiMagic,
-        appLauncherIcon,
-        appLauncherIconV1,
-        appLauncherIconV2,
-        appleLogo,
-        background,
-        blob,
-        calendarLogo,
-        checkbox,
-        clone,
-        emailLogo,
-        emotionalFeedback1,
-        facebookLogo,
-        googleLogo,
-        gradientCard,
-        herologo,
-        herologoV1,
-        herologoV3,
-        herologoV4,
-        icChart,
-        icCloneChat,
-        icClonePlus,
-        icDollar,
-        icPersonaProfile,
-        icSettingPersona,
-        imessageLogo,
-        instagramLogo,
-        instruction1,
-        instruction2,
-        instruction3,
-        linkIcon,
-        linkedinLogo,
-        logoTransparent,
-        logoTransparentV1,
-        logoTransparentV2,
-        newBackground,
-        notionLogo,
-        recordingGreenCircleIcon,
-        slackLogo,
-        speaker0Icon,
-        speaker1Icon,
-        splash,
-        splashIcon,
-        splashIconV1,
-        splashIconV2,
-        splashV1,
-        splashV2,
-        stars,
-        stripeLogo,
-        telegramLogo,
-        whatsappLogo,
-        xLogo,
-        xLogoMini,
-        youtubeLogo
-      ];
+    aiMagic,
+    appLauncherIcon,
+    appLauncherIconV1,
+    appLauncherIconV2,
+    appleLogo,
+    background,
+    blob,
+    calendarLogo,
+    checkbox,
+    clone,
+    emailLogo,
+    emotionalFeedback1,
+    facebookLogo,
+    googleLogo,
+    gradientCard,
+    herologo,
+    herologoV1,
+    herologoV3,
+    herologoV4,
+    icChart,
+    icCloneChat,
+    icClonePlus,
+    icDollar,
+    icPersonaProfile,
+    icSettingPersona,
+    imessageLogo,
+    instagramLogo,
+    instruction1,
+    instruction2,
+    instruction3,
+    linkIcon,
+    linkedinLogo,
+    logoTransparent,
+    logoTransparentV1,
+    logoTransparentV2,
+    newBackground,
+    notionLogo,
+    recordingGreenCircleIcon,
+    slackLogo,
+    speaker0Icon,
+    speaker1Icon,
+    splash,
+    splashIcon,
+    splashIconV1,
+    splashIconV2,
+    splashV1,
+    splashV2,
+    stars,
+    stripeLogo,
+    telegramLogo,
+    whatsappLogo,
+    xLogo,
+    xLogoMini,
+    youtubeLogo,
+  ];
 }
 
 class $AssetsLottieAnimationsGen {
@@ -370,11 +370,7 @@ class Assets {
 }
 
 class AssetGenImage {
-  const AssetGenImage(
-    this._assetName, {
-    this.size,
-    this.flavors = const {},
-  });
+  const AssetGenImage(this._assetName, {this.size, this.flavors = const {}});
 
   final String _assetName;
 
@@ -434,15 +430,8 @@ class AssetGenImage {
     );
   }
 
-  ImageProvider provider({
-    AssetBundle? bundle,
-    String? package,
-  }) {
-    return AssetImage(
-      _assetName,
-      bundle: bundle,
-      package: package,
-    );
+  ImageProvider provider({AssetBundle? bundle, String? package}) {
+    return AssetImage(_assetName, bundle: bundle, package: package);
   }
 
   String get path => _assetName;

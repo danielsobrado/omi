@@ -1,169 +1,207 @@
-#!/bin/bash
-#
-# Set up the Omi Mobile Project(iOS/Android).
-#
-# Prerequisites (stable versions, use these or higher):
-#
-# Common for all developers:
-# - Flutter SDK (v3.32.4)
-# - Opus Codec: https://opus-codec.org
-#
-# For iOS Developers:
-# - Xcode (v16.4)
-# - CocoaPods (v1.16.2)
-#
-# For Android Developers:
-# - Android Studio (Iguana | 2024.3)
-# - Android SDK Platform (API 35)
-# - JDK (v21)
-# - Gradle (v8.10)
-# - NDK (27.0.12077973)
-# Usages: 
-# - $bash setup.sh ios
-# - $bash setup.sh android
+@ECHO OFF
+SETLOCAL
 
-set -euo pipefail
+:: This is a Windows Batch file equivalent of the original bash script.
+::
+:: Set up the Omi Mobile Project(iOS/Android).
+::
+:: Prerequisites (stable versions, use these or higher):
+::
+:: Common for all developers:
+:: - Flutter SDK (v3.32.4)
+:: - Opus Codec: https://opus-codec.org
+::
+:: For iOS Developers (REQUIRES A MACOS MACHINE):
+:: - Xcode (v16.4)
+:: - CocoaPods (v1.16.2)
+::
+:: For Android Developers:
+:: - Android Studio (Iguana | 2024.3)
+:: - Android SDK Platform (API 35)
+:: - JDK (v21)
+:: - Gradle (v8.10)
+:: - NDK (27.0.12077973)
+:: Usages:
+:: - > setup.bat ios
+:: - > setup.bat android
 
-echo "👋 Yo folks! Welcome to the OMI Mobile Project - We're hiring! Join us on Discord: http://discord.omi.me"
-echo "Prerequisites (stable versions, use these or higher):"
-echo ""
-echo "Common for all developers:"
-echo "- Flutter SDK (v3.32.4)"
-echo "- Opus Codec: https://opus-codec.org"
-echo ""
-echo "For iOS Developers:"
-echo "- Xcode (v16.4)"
-echo "- CocoaPods (v1.16.2)"
-echo ""
-echo "For Android Developers:"
-echo "- Android Studio (Iguana | 2024.3)"
-echo "- Android SDK Platform (API 35)"
-echo "- JDK (v21)"
-echo "- Gradle (v8.10)"
-echo "- NDK (27.0.12077973)"
-echo "Usages:"
-echo "- bash setup.sh ios"
-echo "- bash setup.sh android"
-echo ""
+ECHO [INFO] Welcome to the OMI Mobile Project - We're hiring! Join us on Discord: http://discord.omi.me
+ECHO Prerequisites (stable versions, use these or higher):
+ECHO.
+ECHO Common for all developers:
+ECHO - Flutter SDK (v3.32.4)
+ECHO - Opus Codec: https://opus-codec.org
+ECHO.
+ECHO For iOS Developers (REQUIRES A MACOS MACHINE):
+ECHO - Xcode (v16.4)
+ECHO - CocoaPods (v1.16.2)
+ECHO.
+ECHO For Android Developers:
+ECHO - Android Studio (Iguana ^| 2024.3)
+ECHO - Android SDK Platform (API 35)
+ECHO - JDK (v21)
+ECHO - Gradle (v8.10)
+ECHO - NDK (27.0.12077973)
+ECHO.
+ECHO Usages:
+ECHO - setup.bat ios
+ECHO - setup.bat android
+ECHO.
+
+SET "API_BASE_URL=https://backend-dt5lrfkkoa-uc.a.run.app/"
+
+:: ##################################################################
+:: Main logic block - determines which platform setup to run
+:: ##################################################################
+
+IF /I "%1" == "ios" (
+    CALL :setup_ios
+) ELSE IF /I "%1" == "android" (
+    CALL :setup_android
+) ELSE (
+    CALL :error "Unexpected platform '%1'. Please use 'ios' or 'android'."
+)
+
+GOTO :EOF
+
+:: ##################################################################
+:: Subroutines (equivalent to Bash functions)
+:: ##################################################################
+
+:setup_ios
+    ECHO.
+    ECHO ### Running iOS Setup ###
+    ECHO.
+
+    CALL :setup_firebase
+    IF %ERRORLEVEL% NEQ 0 GOTO :handle_error
+
+    CALL :setup_app_env
+    IF %ERRORLEVEL% NEQ 0 GOTO :handle_error
+
+    CALL :setup_provisioning_profile
+    IF %ERRORLEVEL% NEQ 0 GOTO :handle_error
+
+    CALL :build_ios
+    IF %ERRORLEVEL% NEQ 0 GOTO :handle_error
+
+    ECHO.
+    ECHO [SUCCESS] iOS setup completed successfully.
+GOTO :EOF
+
+:setup_android
+    ECHO.
+    ECHO ### Running Android Setup ###
+    ECHO.
+
+    CALL :setup_keystore_android
+    IF %ERRORLEVEL% NEQ 0 GOTO :handle_error
+
+    CALL :setup_firebase
+    IF %ERRORLEVEL% NEQ 0 GOTO :handle_error
+
+    CALL :setup_app_env
+    IF %ERRORLEVEL% NEQ 0 GOTO :handle_error
+
+    CALL :build
+    IF %ERRORLEVEL% NEQ 0 GOTO :handle_error
+
+    ECHO.
+    ECHO [SUCCESS] Android setup completed successfully.
+GOTO :EOF
 
 
-API_BASE_URL=https://backend-dt5lrfkkoa-uc.a.run.app/
+:setup_firebase
+    ECHO --- Setting up Firebase with prebuilt configs...
+    mkdir android\app\src\dev\ 2>NUL
+    mkdir ios\Config\Dev\ 2>NUL
+    mkdir ios\Runner\ 2>NUL
+    copy setup\prebuilt\firebase_options.dart lib\firebase_options_dev.dart
+    IF %ERRORLEVEL% NEQ 0 EXIT /B 1
+    copy setup\prebuilt\google-services.json android\app\src\dev\
+    IF %ERRORLEVEL% NEQ 0 EXIT /B 1
+    copy setup\prebuilt\GoogleService-Info.plist ios\Config\Dev\
+    IF %ERRORLEVEL% NEQ 0 EXIT /B 1
+    copy setup\prebuilt\GoogleService-Info.plist ios\Runner\
+    IF %ERRORLEVEL% NEQ 0 EXIT /B 1
 
-######################################
-# Setup Firebase with prebuilt configs
-######################################
-function setup_firebase() {
-  mkdir -p android/app/src/dev/ ios/Config/Dev/ ios/Runner/
-  cp setup/prebuilt/firebase_options.dart lib/firebase_options_dev.dart
-  cp setup/prebuilt/google-services.json android/app/src/dev/
-  cp setup/prebuilt/GoogleService-Info.plist ios/Config/Dev/
-  cp setup/prebuilt/GoogleService-Info.plist ios/Runner/
+    :: Warn: Mocking, should remove
+    mkdir android\app\src\prod\ 2>NUL
+    mkdir ios\Config\Prod\ 2>NUL
+    copy setup\prebuilt\firebase_options.dart lib\firebase_options_prod.dart
+    IF %ERRORLEVEL% NEQ 0 EXIT /B 1
+    copy setup\prebuilt\google-services.json android\app\src\prod\
+    IF %ERRORLEVEL% NEQ 0 EXIT /B 1
+    copy setup\prebuilt\GoogleService-Info.plist ios\Config\Prod\
+GOTO :EOF
 
-  # Warn: Mocking, should remove
-  mkdir -p android/app/src/prod/ ios/Config/Prod/
-  cp setup/prebuilt/firebase_options.dart lib/firebase_options_prod.dart
-  cp setup/prebuilt/google-services.json android/app/src/prod/
-  cp setup/prebuilt/GoogleService-Info.plist ios/Config/Prod/
-}
+:setup_provisioning_profile
+    ECHO.
+    ECHO [WARNING] iOS Provisioning Profile setup requires a macOS environment.
+    ECHO [WARNING] This step uses 'fastlane', which is typically installed via 'brew' on a Mac.
+    ECHO [WARNING] This section WILL fail on a standard Windows machine.
+    ECHO.
+    ECHO --- Attempting to set up provisioning profile...
 
-##########################################
-# Setup Firebase with Service Account Json
-##########################################
-function setup_firebase_with_service_account() {
-  dart pub global activate flutterfire_cli
-  flutterfire config \
-    --platforms="android,ios,web" \
-    --out=lib/firebase_options_dev.dart \
-    --ios-bundle-id=com.friend-app-with-wearable.ios12.development \
-    --android-app-id=com.friend.ios.dev \
-    --android-out=android/app/src/dev/  \
-    --ios-out=ios/Config/Dev/ \
-    --service-account="$FIREBASE_SERVICE_ACCOUNT_KEY" \
-    --project="based-hardware-dev" \
-    --ios-target="Runner" \
-    --yes
-
-  flutterfire config \
-    --platforms="android,ios,web" \
-    --out=lib/firebase_options_prod.dart \
-    --ios-bundle-id=com.friend-app-with-wearable.ios12 \
-    --android-app-id=com.friend.ios.dev \
-    --android-out=android/app/src/prod/ \
-    --ios-out=ios/Config/Prod/ \
-    --service-account="$FIREBASE_SERVICE_ACCOUNT_KEY" \
-    --project="based-hardware-dev" \
-    --ios-target="Runner" \
-    --yes
-}
-
-######################################
-# Setup provisioning profile
-######################################
-function setup_provisioning_profile() {
-    # Only install fastlane if it doesn't exist
-    if ! command -v fastlane &> /dev/null; then
-        echo "Installing fastlane..."
-        brew install fastlane
-    fi
-    
-    MATCH_PASSWORD=omi fastlane match development --readonly \
-        --app_identifier com.friend-app-with-wearable.ios12.development \
+    where fastlane >nul 2>nul
+    IF %ERRORLEVEL% NEQ 0 (
+        ECHO 'fastlane' command not found. This step cannot continue on Windows.
+        EXIT /B 1
+    )
+    SET "MATCH_PASSWORD=omi"
+    fastlane match development --readonly ^
+        --app_identifier com.friend-app-with-wearable.ios12.development ^
         --git_url "git@github.com:BasedHardware/omi-community-certs.git"
-}
+GOTO :EOF
 
+:setup_app_env
+    ECHO --- Setting up App .env file...
+    echo API_BASE_URL=%API_BASE_URL% > .dev.env
+GOTO :EOF
 
-#################
-# Set up App .env
-#################
-function setup_app_env() {
-  echo API_BASE_URL=$API_BASE_URL > .dev.env
-}
+:setup_keystore_android
+    ECHO --- Setting up Android Keystore...
+    copy setup\prebuilt\key.properties android\
+GOTO :EOF
 
-# #######################
-# Set up Android Keystore
-# #######################
-function setup_keystore_android() {
-  cp setup/prebuilt/key.properties android/
-}
+:build
+    ECHO --- Running common build steps...
+    flutter pub get && dart run build_runner build
+GOTO :EOF
 
-# #####
-# Build
-# #####
-function build() {
-  flutter pub get \
-    && dart run build_runner build
-}
+:build_ios
+    ECHO.
+    ECHO [WARNING] iOS build steps require a macOS environment with CocoaPods.
+    ECHO [WARNING] The 'pod install' command WILL fail on a standard Windows machine.
+    ECHO.
+    ECHO --- Running iOS-specific build steps...
+    flutter pub get
+    IF %ERRORLEVEL% NEQ 0 EXIT /B 1
 
-# #########
-# Build iOS
-# #########
-function build_ios() {
-  flutter pub get \
-    && pushd ios && pod install --repo-update && popd \
-    && dart run build_runner build
-}
+    ECHO --- Changing to 'ios' directory to run 'pod install'...
+    pushd ios
+    pod install --repo-update
+    IF %ERRORLEVEL% NEQ 0 (
+        ECHO.
+        ECHO [ERROR] 'pod install' failed. This is expected on Windows.
+        ECHO Please run this command on a macOS machine with CocoaPods installed.
+        popd
+        EXIT /B 1
+    )
+    popd
+    dart run build_runner build
+GOTO :EOF
 
-# #######
-# Run dev
-# #######
-function run_dev() {
-  flutter run --flavor dev
-}
+:error
+    ECHO.
+    ECHO [ERROR] %~1
+    ECHO.
+    ECHO Usage: %~n0 [ios^|android]
+    EXIT /B 1
+GOTO :EOF
 
-case "${1}" in
-  ios)
-    setup_firebase \
-      && setup_app_env \
-      && setup_provisioning_profile \
-      && build_ios
-    ;;
-  android)
-    setup_keystore_android \
-      && setup_firebase \
-      && setup_app_env \
-      && build
-    ;;
-  *)
-    error "Unexpected platform '${1}'"
-    ;;
-esac
+:handle_error
+    ECHO.
+    ECHO [ERROR] A step in the setup process failed. Exiting.
+    EXIT /B 1
+GOTO :EOF
