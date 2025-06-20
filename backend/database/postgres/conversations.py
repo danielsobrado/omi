@@ -350,7 +350,7 @@ def store_conversation_photos(uid: str, conversation_id: str, photos: List[Conve
                 uid=uid, conversation_id=conversation_id,
                 url=p.url, timestamp=p.timestamp
             ) for p in photos
-        ]
+        ] 
         db.add_all(photo_models)
         db.commit()
     finally:
