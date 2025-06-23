@@ -25,19 +25,18 @@ openrouter_config = {
 openrouter_config = {k: v for k, v in openrouter_config.items() if v is not None}
 
 # Define models using OpenRouter identifiers
-# Note: Model names like 'o1-preview' and 'o4-mini' have been mapped to their likely OpenRouter equivalents.
-# You can adjust these to any model available on OpenRouter.
+# Updated to match upstream's model preferences
 llm_mini = ChatOpenAI(model='openai/gpt-4o-mini', **openrouter_config)
 llm_mini_stream = ChatOpenAI(model='openai/gpt-4o-mini', streaming=True, **openrouter_config)
 
-llm_large = ChatOpenAI(model='openai/gpt-4o', **openrouter_config)
-llm_large_stream = ChatOpenAI(model='openai/gpt-4o', streaming=True, temperature=1, **openrouter_config)
+llm_large = ChatOpenAI(model='openai/o1-preview', **openrouter_config)
+llm_large_stream = ChatOpenAI(model='openai/o1-preview', streaming=True, temperature=1, **openrouter_config)
 
-llm_high = ChatOpenAI(model='openai/gpt-4o-mini', **openrouter_config)
-llm_high_stream = ChatOpenAI(model='openai/gpt-4o-mini', streaming=True, temperature=1, **openrouter_config)
+llm_high = ChatOpenAI(model='openai/o4-mini', **openrouter_config)
+llm_high_stream = ChatOpenAI(model='openai/o4-mini', streaming=True, temperature=1, **openrouter_config)
 
 llm_medium = ChatOpenAI(model='openai/gpt-4o', **openrouter_config)
-llm_medium_experiment = ChatOpenAI(model='openai/gpt-4o', **openrouter_config)
+llm_medium_experiment = ChatOpenAI(model='openai/gpt-4.1', **openrouter_config)
 llm_medium_stream = ChatOpenAI(model='openai/gpt-4o', streaming=True, **openrouter_config)
 
 llm_persona_mini_stream = ChatOpenAI(

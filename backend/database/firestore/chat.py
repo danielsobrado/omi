@@ -6,10 +6,12 @@ from typing import Optional, List, Dict, Any
 from google.cloud import firestore
 from google.cloud.firestore_v1 import FieldFilter
 
+from database import users as users_db
 from models.chat import Message
 from utils import encryption
 from utils.other.endpoints import timeit
-from .client import db
+from ._client import db
+from .helpers import set_data_protection_level, prepare_for_write, prepare_for_read
 
 
 # *********************************
@@ -57,7 +59,8 @@ def _prepare_message_for_read(message_data: Optional[Dict[str, Any]], uid: str) 
 # ********** CRUD *************
 # *****************************
 
-@timeit
+@set_data_protection_level(data_arg_name='message_data')
+@prepare_for_write(data_arg_name='message_data', prepare_func=_prepare_data_for_write)
 def add_message(uid: str, message_data: dict):
     del message_data['memories']
     user_ref = db.collection('users').document(uid)
@@ -95,6 +98,7 @@ def add_summary_message(text: str, uid: str) -> Message:
     return ai_message
 
 
+@prepare_for_read(decrypt_func=_prepare_message_for_read)
 def get_app_messages(uid: str, app_id: str, limit: int = 20, offset: int = 0, include_conversations: bool = False):
     user_ref = db.collection('users').document(uid)
     messages_ref = (
@@ -138,7 +142,7 @@ def get_app_messages(uid: str, app_id: str, limit: int = 20, offset: int = 0, in
     return messages
 
 
-@timeit
+@prepare_for_read(decrypt_func=_prepare_message_for_read)
 def get_messages(
         uid: str, limit: int = 20, offset: int = 0, include_conversations: bool = False, app_id: Optional[str] = None,
         chat_session_id: Optional[str] = None
@@ -348,3 +352,62 @@ def add_files_to_chat_session(uid: str, chat_session_id: str, file_ids: List[str
     user_ref = db.collection('users').document(uid)
     session_ref = user_ref.collection('chat_sessions').document(chat_session_id)
     session_ref.update({"file_ids": firestore.ArrayUnion(file_ids)})
+
+
+# **************************************
+# ********* MIGRATION HELPERS **********
+# **************************************
+
+def get_chats_to_migrate(uid: str, target_level: str) -> List[dict]:
+    """
+    Finds all chat messages that are not at the target protection level by fetching all documents
+    and filtering them in memory. This simplifies the code but may be less performant for
+    users with a very large number of documents.
+    """
+    messages_ref = db.collection('users').document(uid).collection('messages')
+    all_messages = messages_ref.select(['data_protection_level']).stream()
+
+    to_migrate = []
+    for doc in all_messages:
+        doc_data = doc.to_dict()
+        current_level = doc_data.get('data_protection_level', 'standard')
+        if target_level != current_level:
+            to_migrate.append({'id': doc.id, 'type': 'chat'})
+
+    return to_migrate
+
+
+def migrate_chats_level_batch(uid: str, message_doc_ids: List[str], target_level: str):
+    """
+    Migrates a batch of chat messages to the target protection level.
+    """
+    batch = db.batch()
+    messages_ref = db.collection('users').document(uid).collection('messages')
+    doc_refs = [messages_ref.document(msg_id) for msg_id in message_doc_ids]
+    doc_snapshots = db.get_all(doc_refs)
+
+    for doc_snapshot in doc_snapshots:
+        if not doc_snapshot.exists:
+            print(f"Message {doc_snapshot.id} not found, skipping.")
+            continue
+
+        message_data = doc_snapshot.to_dict()
+        current_level = message_data.get('data_protection_level', 'standard')
+
+        if current_level == target_level:
+            continue
+
+        plain_data = _prepare_message_for_read(message_data, uid)
+        plain_text = plain_data.get('text')
+        migrated_text = plain_text
+        if target_level == 'enhanced':
+            if isinstance(plain_text, str):
+                migrated_text = encryption.encrypt(plain_text, uid)
+
+        update_data = {
+            'data_protection_level': target_level,
+            'text': migrated_text
+        }
+        batch.update(doc_snapshot.reference, update_data)
+
+    batch.commit()
