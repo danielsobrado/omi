@@ -286,7 +286,7 @@ class VectorStore(Base):
     uid = Column(String, ForeignKey("users.uid", ondelete="CASCADE"), nullable=False, index=True)
     conversation_id = Column(String, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
     embedding = Column(Vector(3072)) # For text-embedding-3-large
-    metadata = Column(JSON)
+    meta_data = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

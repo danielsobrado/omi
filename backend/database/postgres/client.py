@@ -1,5 +1,6 @@
 # backend/database/postgres/client.py
 import os
+import hashlib
 import logging
 from functools import wraps
 from sqlalchemy import create_engine
@@ -41,3 +42,10 @@ def db_session_manager(func):
         finally:
             session.close()
     return wrapper
+
+def document_id_from_seed(seed: str) -> str:
+    """
+    Generate a deterministic document ID from a seed string.
+    This is used for creating consistent IDs for analytics and ratings.
+    """
+    return hashlib.sha256(seed.encode()).hexdigest()[:16]

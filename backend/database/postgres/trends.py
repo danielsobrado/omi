@@ -1,6 +1,6 @@
 # backend/database/postgres/trends.py
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Optional, Dict, Any
 from sqlalchemy import func, desc, and_
 from sqlalchemy.orm import Session
 

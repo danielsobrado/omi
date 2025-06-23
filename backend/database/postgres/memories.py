@@ -252,6 +252,49 @@ def delete_memories_for_conversation(db: Session, uid: str, memory_id: str):
     
     db.commit()
     logging.info(f'delete_memories_for_conversation {memory_id} {deleted_count}')
+    
+@db_session_manager
+@set_data_protection_level(data_arg_name='data')
+@prepare_for_write(data_arg_name='data', prepare_func=_prepare_data_for_write)
+def update_memory(db: Session, uid: str, memory_id: str, data: dict) -> bool:
+    """Update an existing memory with new data."""
+    memory = db.query(MemoryModel).filter(
+        and_(MemoryModel.uid == uid, MemoryModel.id == memory_id)
+    ).first()
+    
+    if memory:
+        for key, value in data.items():
+            if hasattr(memory, key):
+                setattr(memory, key, value)
+        
+        memory.updated_at = datetime.now(timezone.utc)
+        db.flush()
+        return True
+    return False
+
+@db_session_manager
+@prepare_for_read(decrypt_func=_prepare_memory_for_read)
+def search_memories(db: Session, uid: str, query: str, limit: int = 10, offset: int = 0) -> List[Dict[str, Any]]:
+    """
+    Search memories by text content. This is a basic implementation using PostgreSQL's
+    text search. For production, you might want to use a more sophisticated search engine.
+    """
+    # Basic text search using PostgreSQL's ILIKE for partial matching
+    # For better search, consider using PostgreSQL's full-text search or a dedicated search engine
+    memories = db.query(MemoryModel).filter(
+        and_(
+            MemoryModel.uid == uid,
+            or_(MemoryModel.deleted == False, MemoryModel.deleted.is_(None)),
+            or_(MemoryModel.discarded == False, MemoryModel.discarded.is_(None)),
+            or_(
+                MemoryModel.content.ilike(f'%{query}%'),
+                MemoryModel.title.ilike(f'%{query}%'),
+                MemoryModel.overview.ilike(f'%{query}%')
+            )
+        )
+    ).order_by(desc(MemoryModel.scoring), desc(MemoryModel.created_at)).limit(limit).offset(offset).all()
+    
+    return [{c.name: getattr(mem, c.name) for c in mem.__table__.columns} for mem in memories]
 
 # **************************************
 # ********* MIGRATION HELPERS **********
