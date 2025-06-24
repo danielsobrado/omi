@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:15
+    image: pgvector/pgvector:0.8.0-pg15
     environment:
       POSTGRES_DB: omi_db
       POSTGRES_USER: omi_user
