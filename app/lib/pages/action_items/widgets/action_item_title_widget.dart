@@ -4,6 +4,8 @@ import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/providers/conversation_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
+import 'package:omi/services/apple_reminders_service.dart';
+import 'package:omi/utils/platform/platform_service.dart';
 
 import 'edit_action_item_sheet.dart';
 import 'package:omi/widgets/confirmation_dialog.dart';
@@ -16,6 +18,8 @@ class ActionItemTileWidget extends StatefulWidget {
   final bool hasRoundedCorners;
   final bool isLastInGroup;
   final bool isInGroup;
+  final Set<String> exportedToAppleReminders;
+  final VoidCallback? onExportedToAppleReminders;
 
   const ActionItemTileWidget({
     super.key,
@@ -25,6 +29,8 @@ class ActionItemTileWidget extends StatefulWidget {
     this.hasRoundedCorners = true,
     this.isLastInGroup = false,
     this.isInGroup = false,
+    this.exportedToAppleReminders = const <String>{},
+    this.onExportedToAppleReminders,
   });
 
   @override
@@ -32,9 +38,17 @@ class ActionItemTileWidget extends StatefulWidget {
 }
 
 class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
-  // Assume SharedPreferencesUtil is available and has these methods:
-  // bool get dontAskAgainDeleteActionItem => _prefs.getBool('dont_ask_again_delete_action_item') ?? false;
-  // Future<void> setDontAskAgainDeleteActionItem(bool value) async => await _prefs.setBool('dont_ask_again_delete_action_item', value);
+  static final Map<String, bool> _pendingStates = {}; // Track pending states by description
+
+  // Check if this action item is exported to Apple Reminders
+  bool get _isExportedToAppleReminders => widget.exportedToAppleReminders.contains(widget.actionItem.description);
+
+  @override
+  void dispose() {
+    // Clean up any pending state for this item when widget is disposed
+    _pendingStates.remove(widget.actionItem.description);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +57,11 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
       (c) => c.id == widget.conversationId,
       orElse: () => provider.searchedConversations.firstWhere((c) => c.id == widget.conversationId),
     );
+
+    // Check if this specific item has a pending state change
+    final isCompleted = _pendingStates.containsKey(widget.actionItem.description)
+        ? _pendingStates[widget.actionItem.description]!
+        : widget.actionItem.completed;
 
     BorderRadius borderRadius;
     if (widget.hasRoundedCorners) {
@@ -58,7 +77,7 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey[900],
+        color: const Color(0xFF1F1F25),
         borderRadius: borderRadius,
         boxShadow: [
           BoxShadow(
@@ -152,13 +171,8 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
                 ) ??
                 false;
           } else if (direction == DismissDirection.startToEnd) {
-            // Complete action (swipe right) - toggle completed state
-            final newValue = !widget.actionItem.completed;
-            context.read<ConversationProvider>().updateGlobalActionItemState(
-                  conversation,
-                  widget.itemIndexInConversation,
-                  newValue,
-                );
+            // Complete action (swipe right) - use same logic as tap
+            _toggleCompletion(context, conversation);
             return false;
           }
           return false;
@@ -188,39 +202,30 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
                     child: Transform.translate(
                       offset: const Offset(0, 2),
                       child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.lightImpact();
-                          final newValue = !widget.actionItem.completed;
-                          MixpanelManager().actionItemToggledCompletionOnActionItemsPage(
-                            conversationId: widget.conversationId,
-                            actionItemDescription: widget.actionItem.description,
-                            isCompleted: newValue,
-                          );
-                          context.read<ConversationProvider>().updateGlobalActionItemState(
-                                conversation,
-                                widget.itemIndexInConversation,
-                                newValue,
-                              );
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          height: 20,
-                          width: 20,
-                          decoration: BoxDecoration(
-                            color: widget.actionItem.completed ? Colors.deepPurpleAccent : Colors.transparent,
-                            border: Border.all(
-                              color: widget.actionItem.completed ? Colors.deepPurpleAccent : Colors.grey[400]!,
-                              width: 1.5,
+                        onTap: () => _toggleCompletion(context, conversation),
+                        child: AnimatedOpacity(
+                          opacity: 1.0,
+                          duration: const Duration(milliseconds: 300),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            height: 20,
+                            width: 20,
+                            decoration: BoxDecoration(
+                              color: isCompleted ? Colors.green : Colors.transparent,
+                              border: Border.all(
+                                color: isCompleted ? Colors.green : Colors.grey[400]!,
+                                width: 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(5),
                             ),
-                            borderRadius: BorderRadius.circular(5),
+                            child: isCompleted
+                                ? const Icon(
+                                    Icons.check,
+                                    size: 14,
+                                    color: Colors.white,
+                                  )
+                                : null,
                           ),
-                          child: widget.actionItem.completed
-                              ? const Icon(
-                                  Icons.check,
-                                  size: 14,
-                                  color: Colors.white,
-                                )
-                              : null,
                         ),
                       ),
                     ),
@@ -239,8 +244,8 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
                                 child: Text(
                                   widget.actionItem.description,
                                   style: TextStyle(
-                                    color: widget.actionItem.completed ? Colors.grey.shade500 : Colors.white,
-                                    decoration: widget.actionItem.completed ? TextDecoration.lineThrough : null,
+                                    color: isCompleted ? Colors.grey.shade500 : Colors.white,
+                                    decoration: isCompleted ? TextDecoration.lineThrough : null,
                                     decorationColor: Colors.grey.shade600,
                                     fontSize: 16,
                                     height: 1.3,
@@ -248,6 +253,80 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
                                   ),
                                 ),
                               ),
+                              // Apple Reminders export button (only show on Apple platforms and if not completed)
+                              if (PlatformService.isApple && !isCompleted)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 8.0),
+                                  child: GestureDetector(
+                                    onTap: _isExportedToAppleReminders ? null : () => _exportToAppleReminders(context),
+                                    child: Container(
+                                      width: 28,
+                                      height: 28,
+                                      // decoration: BoxDecoration(
+                                      //   color: _isExportedToAppleReminders
+                                      //       ? Colors.grey[700]?.withOpacity(0.3)
+                                      //       : Colors.grey[800]?.withOpacity(0.5),
+                                      //   borderRadius: BorderRadius.circular(6),
+                                      // ),
+                                      child: Stack(
+                                        children: [
+                                          Center(
+                                            child: Image.asset(
+                                              'assets/images/apple-reminders-logo.png',
+                                              width: 24,
+                                              height: 24,
+                                              // color: _isExportedToAppleReminders ? Colors.grey[600] : Colors.grey[400],
+                                            ),
+                                          ),
+                                          // Green checkmark overlay when exported
+                                          _isExportedToAppleReminders
+                                              ? Positioned(
+                                                  bottom: 0,
+                                                  right: 0,
+                                                  child: Container(
+                                                    width: 12,
+                                                    height: 12,
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.green,
+                                                      shape: BoxShape.circle,
+                                                      border: Border.all(
+                                                        color: const Color(0xFF1F1F25),
+                                                        width: 1,
+                                                      ),
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.check,
+                                                      size: 8,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                )
+                                              : Positioned(
+                                                  bottom: 0,
+                                                  right: 0,
+                                                  child: Container(
+                                                    width: 12,
+                                                    height: 12,
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.yellow,
+                                                      shape: BoxShape.circle,
+                                                      border: Border.all(
+                                                        color: const Color(0xFF1F1F25),
+                                                        width: 1,
+                                                      ),
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.add,
+                                                      size: 8,
+                                                      color: Colors.black,
+                                                    ),
+                                                  ),
+                                                ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
 
@@ -259,7 +338,7 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey.shade800,
+                                  color: Color(0xFF35343B),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Row(
@@ -295,6 +374,67 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
     );
   }
 
+  void _toggleCompletion(BuildContext context, conversation) async {
+    // Haptic feedback
+    HapticFeedback.lightImpact();
+
+    final newValue = !widget.actionItem.completed;
+    final itemDescription = widget.actionItem.description;
+
+    // Update pending state immediately for instant visual feedback
+    setState(() {
+      _pendingStates[itemDescription] = newValue;
+    });
+
+    try {
+      // Update global state immediately
+      await context.read<ConversationProvider>().updateGlobalActionItemState(
+            conversation,
+            itemDescription,
+            newValue,
+          );
+
+      // Wait for 200ms before clearing pending state (allows user to see the change before item moves)
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted) {
+          setState(() {
+            _pendingStates.remove(itemDescription); // Clear pending state so item moves to correct section
+          });
+        }
+      });
+
+      // Sync with Apple Reminders if item was exported and is being marked as completed
+      if (newValue && _isExportedToAppleReminders && PlatformService.isApple) {
+        try {
+          final service = AppleRemindersService();
+          final success = await service.completeReminder(itemDescription);
+          if (success) {
+            debugPrint('Successfully completed reminder in Apple Reminders: $itemDescription');
+          } else {
+            debugPrint('Failed to complete reminder in Apple Reminders: $itemDescription');
+          }
+        } catch (e) {
+          debugPrint('Error syncing completion to Apple Reminders: $e');
+        }
+      }
+
+      // Track analytics
+      MixpanelManager().actionItemToggledCompletionOnActionItemsPage(
+        conversationId: widget.conversationId,
+        actionItemDescription: itemDescription,
+        isCompleted: newValue,
+      );
+    } catch (e) {
+      // If there's an error, revert pending state
+      if (mounted) {
+        setState(() {
+          _pendingStates.remove(itemDescription);
+        });
+      }
+      debugPrint('Error updating action item state: $e');
+    }
+  }
+
   void _showEditActionItemBottomSheet(BuildContext context, ActionItem item) {
     showModalBottomSheet(
       context: context,
@@ -308,5 +448,55 @@ class _ActionItemTileWidgetState extends State<ActionItemTileWidget> {
         );
       },
     );
+  }
+
+  Future<void> _exportToAppleReminders(BuildContext context) async {
+    HapticFeedback.lightImpact();
+
+    final service = AppleRemindersService();
+    final result = await service.addActionItem(widget.actionItem.description);
+
+    if (!mounted) return;
+
+    // If successful, notify parent to refresh the exported state
+    if (result.isSuccess) {
+      widget.onExportedToAppleReminders?.call();
+    }
+
+    // Show feedback to user
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              result.isSuccess ? Icons.check_circle : Icons.error,
+              color: result.isSuccess ? Colors.green : Colors.red,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                result.message,
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.grey[900],
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 3),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
+
+    // Track analytics
+    MixpanelManager().track('Action Item Exported to Apple Reminders', properties: {
+      'conversationId': widget.conversationId,
+      'success': result.isSuccess,
+      'result': result.name,
+    });
   }
 }

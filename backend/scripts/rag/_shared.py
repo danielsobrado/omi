@@ -1,13 +1,22 @@
 import json
 import os
+
+# noinspection PyUnresolvedReferences
 from typing import List
 
 import numpy as np
+
+# noinspection PyUnresolvedReferences
 import plotly.graph_objects as go
+
+# noinspection PyUnresolvedReferences
 import umap
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 import chromadb
+
+# noinspection PyUnresolvedReferences
+from plotly.subplots import make_subplots
 
 from models.conversation import Conversation
 
@@ -22,6 +31,8 @@ collection = client.get_or_create_collection(
 )
 
 import database.conversations as conversations_db
+
+# noinspection PyUnresolvedReferences
 import database.memories as facts_d
 
 uid = 'viUv7GtdoHXbK1UBCDlPuTDuPgJ2'
@@ -71,7 +82,7 @@ def get_all_markers(data, data_points, target):
         marker=dict(size=8, opacity=0.5, color='blue'),
         text=[f"{item[0]}" for item in data[5:]],
         hoverinfo='text',
-        name='Other Memories'
+        name='Other Memories',
     )
 
 
@@ -83,7 +94,7 @@ def get_top_markers(data, data_points, target):
         marker=dict(size=10, opacity=0.8, color='green'),
         text=[f"Top {i + 1}: {item[0]}" for i, item in enumerate(data[:5])],
         hoverinfo='text',
-        name='Top Matches'
+        name='Top Matches',
     )
 
 
@@ -92,15 +103,10 @@ def get_query_marker(query_point, query):
         x=[query_point[0]],
         y=[query_point[1]],
         mode='markers',
-        marker=dict(
-            symbol='x',
-            size=12,
-            color='red',
-            line=dict(width=2)
-        ),
+        marker=dict(symbol='x', size=12, color='red', line=dict(width=2)),
         text=[query],
         hoverinfo='text',
-        name='Query'
+        name='Query',
     )
 
 
@@ -111,7 +117,7 @@ def generate_html_visualization(fig, file_name: str = 'embedding_visualization.h
         yaxis_title='UMAP Dimension 2',
         width=800,
         height=600,
-        showlegend=True
+        showlegend=True,
     )
 
     # Generate HTML

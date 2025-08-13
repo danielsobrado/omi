@@ -12,11 +12,15 @@ import 'action_item_title_widget.dart';
 class ConversationActionItemsGroupWidget extends StatelessWidget {
   final ServerConversation conversation;
   final List<ActionItem> actionItems;
+  final Set<String> exportedToAppleReminders;
+  final VoidCallback? onExportedToAppleReminders;
 
   const ConversationActionItemsGroupWidget({
     super.key,
     required this.conversation,
     required this.actionItems,
+    this.exportedToAppleReminders = const <String>{},
+    this.onExportedToAppleReminders,
   });
 
   @override
@@ -29,11 +33,11 @@ class ConversationActionItemsGroupWidget extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
       decoration: BoxDecoration(
-        color: Colors.grey[900],
+        color: const Color(0xFF1F1F25),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -97,6 +101,8 @@ class ConversationActionItemsGroupWidget extends StatelessWidget {
               hasRoundedCorners: false,
               isLastInGroup: isLastItem,
               isInGroup: true,
+              exportedToAppleReminders: exportedToAppleReminders,
+              onExportedToAppleReminders: onExportedToAppleReminders,
             );
           }),
           const SizedBox(height: 8),

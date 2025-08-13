@@ -6,6 +6,8 @@ import 'widgets/convo_action_items_group_widget.dart';
 import 'package:omi/backend/schema/conversation.dart';
 import 'package:omi/backend/schema/structured.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
+import 'package:omi/services/apple_reminders_service.dart';
+import 'package:omi/utils/platform/platform_service.dart';
 
 class ActionItemsPage extends StatefulWidget {
   const ActionItemsPage({super.key});
@@ -16,6 +18,7 @@ class ActionItemsPage extends StatefulWidget {
 
 class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAliveClientMixin {
   bool _showGroupedView = false;
+  Set<String> _exportedToAppleReminders = <String>{};
 
   @override
   bool get wantKeepAlive => true;
@@ -25,7 +28,25 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       MixpanelManager().actionItemsPageOpened();
+      _checkExistingAppleReminders();
     });
+  }
+
+  Future<void> _checkExistingAppleReminders() async {
+    if (!PlatformService.isApple) return;
+
+    try {
+      final service = AppleRemindersService();
+      final existingReminders = await service.getExistingReminders();
+
+      if (mounted) {
+        setState(() {
+          _exportedToAppleReminders = existingReminders.toSet();
+        });
+      }
+    } catch (e) {
+      print('Error checking existing Apple Reminders: $e');
+    }
   }
 
   // Get all action items as a flat list
@@ -130,13 +151,33 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'To-Do\'s (${flattenedItems.where((item) => !item.actionItem.completed).length})',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            Row(
+                              children: [
+                                const Text(
+                                  'To-Do\'s',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[800],
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '${flattenedItems.where((item) => !item.actionItem.completed).length}',
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             const Row(
                               children: [
@@ -265,6 +306,8 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
                             actionItem: item.actionItem,
                             conversationId: item.conversation.id,
                             itemIndexInConversation: item.itemIndex,
+                            exportedToAppleReminders: _exportedToAppleReminders,
+                            onExportedToAppleReminders: _checkExistingAppleReminders,
                           ),
                         );
                       }
@@ -280,7 +323,7 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
                     child: Container(
                       height: 52,
                       decoration: BoxDecoration(
-                        color: Colors.grey[900],
+                        color: const Color(0xFF1F1F25),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Center(
@@ -312,6 +355,8 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
           return ConversationActionItemsGroupWidget(
             conversation: entry.key,
             actionItems: entry.value,
+            exportedToAppleReminders: _exportedToAppleReminders,
+            onExportedToAppleReminders: _checkExistingAppleReminders,
           );
         },
         childCount: sortedEntries.length,
@@ -332,6 +377,8 @@ class _ActionItemsPageState extends State<ActionItemsPage> with AutomaticKeepAli
               actionItem: item.actionItem,
               conversationId: item.conversation.id,
               itemIndexInConversation: item.itemIndex,
+              exportedToAppleReminders: _exportedToAppleReminders,
+              onExportedToAppleReminders: _checkExistingAppleReminders,
             ),
           );
         },

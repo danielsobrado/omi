@@ -75,7 +75,7 @@ scaling:
 api:
   image:
     path: us-central1-docker.pkg.dev/based-hardware-dev/deepgram/self-hosted-api
-    tag: release-250610
+    tag: release-250626
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -90,7 +90,7 @@ api:
       kubernetes.io/ingress.class: "gce-internal"
       kubernetes.io/ingress.regional-static-ip-name: "dev-omi-deepgram-ilb-ip-address"
       kubernetes.io/ingress.allow-http: "false"
-      ingress.gcp.kubernetes.io/pre-shared-cert: "dev-omi-deepgram-ilb-cert"
+      ingress.gcp.kubernetes.io/pre-shared-cert: "dev-omi-deepgram-ilb-cert-20250705"
     hosts:
       - host: dg.omiapi.com
         paths:
@@ -108,7 +108,7 @@ api:
 engine:
   image:
     path: us-central1-docker.pkg.dev/based-hardware-dev/deepgram/self-hosted-engine
-    tag: release-250610
+    tag: release-250626
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -144,7 +144,7 @@ licenseProxy:
   enabled: true
   image:
     path: us-central1-docker.pkg.dev/based-hardware-dev/deepgram/self-hosted-license-proxy
-    tag: release-250610
+    tag: release-250626
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -168,7 +168,7 @@ gpu-operator:
 
 kube-prometheus-stack:
   grafana:
-    enabled: true
+    enabled: false
     ingress:
       enabled: true
       annotations:
@@ -189,6 +189,7 @@ kube-prometheus-stack:
       finalizers:
         - kubernetes.io/pvc-protection
   prometheus:
+    enabled: false
     prometheusSpec:
       additionalScrapeConfigs:
         - job_name: "dg_engine_metrics"
@@ -225,11 +226,17 @@ kube-prometheus-stack:
             action: replace
             target_label: kubernetes_node
 
+  prometheusOperator:
+    enabled: false
+
+  kubeStateMetrics:
+    enabled: false
+
 prometheus-adapter:
   # -- Normally, this chart will be installed if `scaling.auto.enabled` is true. However, if you wish
   # to manage the Prometheus adapter in your cluster on your own and not as part of the Deepgram Helm chart,
   # you can force it to not be installed by setting this to `false`.
-  includeDependency:
+  includeDependency: false
   prometheus:
     url: http://dg-prometheus-stack-prometheus.{{ .Release.Namespace }}.svc
   rules:

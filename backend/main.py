@@ -80,7 +80,7 @@ app.include_router(firmware.router)
 app.include_router(sync.router)
 
 # app.include_router(apps.router)  # Temporarily disabled due to missing PostgreSQL implementation
-# app.include_router(custom_auth.router) # REMOVE
+# app.include_router(custom_auth.router) # REMOVE  
 # app.include_router(oauth.router) # REMOVE
 
 # app.include_router(payment.router)  # Temporarily disabled due to missing PostgreSQL implementation
@@ -99,6 +99,7 @@ methods_timeout = {
 }
 
 app.add_middleware(TimeoutMiddleware, methods_timeout=methods_timeout)
+
 
 # Create temporary directories if they don't exist
 paths = ['_temp', '_samples', '_segments', '_speech_profiles']

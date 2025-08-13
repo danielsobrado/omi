@@ -58,6 +58,24 @@ This backend can run on either Google Firestore (default) or a self-hosted Postg
 10. Set up Redis
     - [Upstash](https://console.upstash.com/) is recommended - sign up and create a free instance
 
+10a. Set up S3-Compatible Storage
+    - **Option A: MinIO (Local Development)**
+      ```bash
+      # Install and run MinIO locally
+      docker run -p 9000:9000 -p 9001:9001 \
+        -e "MINIO_ROOT_USER=minioadmin" \
+        -e "MINIO_ROOT_PASSWORD=minioadmin" \
+        -v minio_data:/data \
+        quay.io/minio/minio server /data --console-address ":9001"
+      ```
+      Then access MinIO Console at http://localhost:9001 and create a bucket named `omi-storage`.
+      
+    - **Option B: AWS S3**
+      Create an S3 bucket and configure IAM credentials with appropriate permissions.
+      
+    - **Option C: Other S3-Compatible Providers**
+      Any S3-compatible storage service (DigitalOcean Spaces, Linode Object Storage, etc.)
+
 11. Add the necessary API keys in the `.env` file:
     - [OpenRouter API Key](https://openrouter.ai/keys) for LLM calls. Set this as `OPENROUTER_API_KEY`.
     - **Embedding Provider**: Choose one of the following options by setting `EMBEDDING_PROVIDER`:
@@ -66,6 +84,20 @@ This backend can run on either Google Firestore (default) or a self-hosted Postg
     - [Deepgram API Key](https://console.deepgram.com/api-keys)
     - Redis credentials from your [Upstash Console](https://console.upstash.com/)
     - Set `ADMIN_KEY` to a temporary value (e.g., `123`) for local development
+    - **Storage Configuration**: Configure S3-compatible storage for audio and file uploads:
+      - `S3_ENDPOINT_URL` - Your S3 or MinIO endpoint URL
+      - `S3_ACCESS_KEY_ID` - Your S3/MinIO access key
+      - `S3_SECRET_ACCESS_KEY` - Your S3/MinIO secret key
+      - `S3_BUCKET_NAME` - Your storage bucket name
+    - **Translation Service** (Optional): Configure Google Cloud Translation for multi-language support:
+      - `GOOGLE_CLOUD_PROJECT` - Your Google Cloud Project ID
+      - Ensure Google Cloud Translation API is enabled in your project
+      - If not configured, translation features will gracefully degrade
+    - **Search Service** (Optional): Configure Typesense for conversation search:
+      - `TYPESENSE_API_KEY` - Your Typesense API key
+      - `TYPESENSE_HOST` - Your Typesense server host
+      - `TYPESENSE_HOST_PORT` - Your Typesense server port
+      - If not configured, search features will return empty results gracefully
     - **Note on Vector Database**: This setup now uses **ChromaDB**, which runs locally and stores its data in the `backend/_chroma_db/` directory. No API keys or cloud setup are required for the vector database.
 
 12. Install Python dependencies (choose one of the following approaches):
@@ -126,4 +158,4 @@ This backend can run on either Google Firestore (default) or a self-hosted Postg
 
 - [Full Backend Setup Documentation](https://docs.omi.me/developer/backend/Backend_Setup)
 - [Omi Documentation](https://docs.omi.me/)
-- [Community Support](https://discord.gg/omi)
+- [Community Support](http://discord.omi.me)

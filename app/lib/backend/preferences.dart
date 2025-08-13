@@ -116,6 +116,10 @@ class SharedPreferencesUtil {
 
   bool get transcriptionDiagnosticEnabled => getBool('transcriptionDiagnosticEnabled') ?? false;
 
+  set autoCreateSpeakersEnabled(bool value) => saveBool('autoCreateSpeakersEnabled', value);
+
+  bool get autoCreateSpeakersEnabled => getBool('autoCreateSpeakersEnabled') ?? true;
+
   set conversationEventsToggled(bool value) => saveBool('conversationEventsToggled', value);
 
   bool get conversationEventsToggled => getBool('conversationEventsToggled') ?? false;
@@ -175,6 +179,11 @@ class SharedPreferencesUtil {
   bool get devModeEnabled => getBool('devModeEnabled') ?? false;
 
   set devModeEnabled(bool value) => saveBool('devModeEnabled', value);
+
+  // Developer Diagnostics
+  bool get devLogsToFileEnabled => getBool('devLogsToFileEnabled') ?? false;
+
+  set devLogsToFileEnabled(bool value) => saveBool('devLogsToFileEnabled', value);
 
   bool get permissionStoreRecordingsEnabled => getBool('permissionStoreRecordingsEnabled') ?? false;
 

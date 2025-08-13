@@ -4,8 +4,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:omi/backend/http/api/conversations.dart';
 import 'package:omi/backend/schema/conversation.dart';
+import 'package:flutter/services.dart';
+import 'package:omi/pages/settings/widgets/create_mcp_api_key_dialog.dart';
+import 'package:omi/pages/settings/widgets/mcp_api_key_list_item.dart';
 import 'package:omi/providers/developer_mode_provider.dart';
+import 'package:omi/providers/mcp_provider.dart';
+import 'package:omi/utils/alerts/app_snackbar.dart';
 import 'package:omi/utils/analytics/mixpanel.dart';
+import 'package:omi/utils/debug_log_manager.dart';
+import 'package:omi/backend/preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -26,6 +33,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
   void initState() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Provider.of<DeveloperModeProvider>(context, listen: false).initialize();
+      context.read<McpProvider>().fetchKeys();
     });
     super.initState();
   }
@@ -71,6 +79,90 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
               child: ListView(
                 shrinkWrap: true,
                 children: [
+                  const SizedBox(height: 24),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Debug logs'),
+                    subtitle: const Text('Helps diagnose issues. Auto-deletes after 3 days.'),
+                    value: SharedPreferencesUtil().devLogsToFileEnabled,
+                    onChanged: (v) async {
+                      await DebugLogManager.setEnabled(v);
+                      setState(() {});
+                    },
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.upload_file, size: 16),
+                          label: const Text('Share Logs'),
+                          onPressed: () async {
+                            final files = await DebugLogManager.listLogFiles();
+                            if (files.isEmpty) {
+                              AppSnackbar.showSnackbarError('No log files found.');
+                              return;
+                            }
+                            if (files.length == 1) {
+                              final result = await Share.shareXFiles([XFile(files.first.path)], text: 'Omi debug log');
+                              if (result.status == ShareResultStatus.success) {
+                                debugPrint('Log shared');
+                              }
+                              return;
+                            }
+
+                            if (!mounted) return;
+                            final selected = await showModalBottomSheet<File>(
+                              context: context,
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                              ),
+                              builder: (ctx) {
+                                return SafeArea(
+                                  child: ListView.separated(
+                                    shrinkWrap: true,
+                                    itemCount: files.length,
+                                    separatorBuilder: (_, __) => Divider(color: Colors.grey.shade800, height: 1),
+                                    itemBuilder: (ctx, i) {
+                                      final f = files[i];
+                                      final name = f.uri.pathSegments.last;
+                                      return ListTile(
+                                        title: Text(name, style: const TextStyle(color: Colors.white)),
+                                        trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+                                        onTap: () => Navigator.of(ctx).pop(f),
+                                      );
+                                    },
+                                  ),
+                                );
+                              },
+                            );
+
+                            if (selected != null) {
+                              final result = await Share.shareXFiles([XFile(selected.path)], text: 'Omi debug log');
+                              if (result.status == ShareResultStatus.success) {
+                                debugPrint('Log shared');
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            backgroundColor: Colors.grey.shade700,
+                            minimumSize: const Size(double.infinity, 40),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      IconButton(
+                        tooltip: 'Clear log',
+                        onPressed: () async {
+                          await DebugLogManager.clear();
+                          AppSnackbar.showSnackbar('Debug log cleared');
+                        },
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
                   //TODO: Model selection commented out because Soniox model is no longer being used
                   // const SizedBox(height: 32),
                   // const Padding(
@@ -236,12 +328,121 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
                   Divider(color: Colors.grey.shade500),
                   const SizedBox(height: 16),
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'MCP',
+                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w500),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          launchUrl(Uri.parse('https://docs.omi.me/doc/developer/MCP'));
+                          MixpanelManager().pageOpened('MCP Docs');
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: Text(
+                            'Docs',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'To connect Omi with other applications to read, search, and manage your memories and conversations. Create a key to get started.',
+                    style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'API Keys',
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => showDialog(
+                          context: context,
+                          builder: (context) => const CreateMcpApiKeyDialog(),
+                        ),
+                        icon: const Icon(Icons.add, color: Colors.white, size: 18),
+                        label: const Text('Create Key', style: TextStyle(color: Colors.white)),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Consumer<McpProvider>(
+                    builder: (context, provider, child) {
+                      if (provider.isLoading && provider.keys.isEmpty) {
+                        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+                      }
+                      if (provider.error != null) {
+                        return Center(child: Text('Error: ${provider.error}'));
+                      }
+                      if (provider.keys.isEmpty) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Text('No API keys found. Create one to get started.'),
+                          ),
+                        );
+                      }
+                      return Column(
+                        children: provider.keys.map((key) => McpApiKeyListItem(apiKey: key)).toList(),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Claude Desktop Integration',
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Add the following to your claude_desktop_config.json file. Remember to replace "your_api_key_here" with a valid key.',
+                    style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.copy, size: 16),
+                    label: const Text('Copy Config'),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.grey.shade700,
+                      minimumSize: const Size(double.infinity, 40),
+                    ),
+                    onPressed: () {
+                      const config = '''{
+  "mcpServers": {
+    "omi": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "-e", "OMI_API_KEY=your_api_key_here", "omiai/mcp-server:latest"]
+    }
+  }
+}''';
+                      Clipboard.setData(const ClipboardData(text: config));
+                      AppSnackbar.showSnackbar('Claude config copied to clipboard.');
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Divider(color: Colors.grey.shade500),
+                  const SizedBox(height: 16),
+                  Row(
                     children: [
                       const Text(
                         'Webhooks',
                         style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w500),
                       ),
-                      Spacer(),
+                      const Spacer(),
                       GestureDetector(
                         onTap: () {
                           launchUrl(Uri.parse('https://docs.omi.me/docs/developer/apps/Introduction'));
@@ -383,6 +584,20 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
                     ),
                     value: provider.transcriptionDiagnosticEnabled,
                     onChanged: provider.onTranscriptionDiagnosticChanged,
+                  ),
+                  const SizedBox(height: 16.0),
+                  CheckboxListTile(
+                    contentPadding: const EdgeInsets.all(0),
+                    title: const Text(
+                      'Auto-create and tag new speakers',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                    subtitle: const Text(
+                      'Automatically create a new person when a name is detected in the transcript.',
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                    value: provider.autoCreateSpeakersEnabled,
+                    onChanged: provider.onAutoCreateSpeakersChanged,
                   ),
                   const SizedBox(height: 16.0),
                   CheckboxListTile(

@@ -14,7 +14,6 @@ import 'package:omi/utils/other/temp.dart';
 import 'package:omi/utils/responsive/responsive_helper.dart';
 import 'package:provider/provider.dart';
 
-
 class DesktopOnboardingWrapper extends StatefulWidget {
   const DesktopOnboardingWrapper({super.key});
 
@@ -141,7 +140,9 @@ class _DesktopOnboardingWrapperState extends State<DesktopOnboardingWrapper> wit
     SharedPreferencesUtil().hasOmiDevice = true;
     SharedPreferencesUtil().verifiedPersonaId = null;
     MixpanelManager().onboardingStepCompleted('Auth');
+    if(context.mounted) {
     context.read<HomeProvider>().setupHasSpeakerProfile();
+    }
     IntercomManager.instance.loginIdentifiedUser(SharedPreferencesUtil().uid);
     IntercomManager.instance.updateUser(
       FirebaseAuth.instance.currentUser!.email,

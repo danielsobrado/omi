@@ -254,6 +254,18 @@ env:
       secretKeyRef:
         name: prod-omi-backend-secrets
         key: ENCRYPTION_SECRET
+  - name: BASIC_TIER_MINUTES_LIMIT_PER_MONTH
+    value: "1000000"
+  - name: BASIC_TIER_WORDS_TRANSCRIBED_LIMIT_PER_MONTH
+    value: "0"
+  - name: BASIC_TIER_INSIGHTS_GAINED_LIMIT_PER_MONTH
+    value: "0"
+  - name: BASIC_TIER_MEMORIES_CREATED_LIMIT_PER_MONTH
+    value: "0"
+  - name: STRIPE_UNLIMITED_MONTHLY_PRICE_ID
+    value: "price_1RtJPm1F8wnoWYvwhVJ38kLb"
+  - name: STRIPE_UNLIMITED_ANNUAL_PRICE_ID
+    value: "price_1RtJQ71F8wnoWYvwKMPaGlGY"
 
 resources:
   # We usually recommend not to specify default resources and to leave this as a conscious
@@ -261,11 +273,11 @@ resources:
   # resources, such as Minikube. If you do want to specify resources, uncomment the following
   # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
   requests:
+    cpu: 0.7
+    memory: 2Gi
+  limits:
     cpu: 1
     memory: 4Gi
-  limits:
-    cpu: 2
-    memory: 6Gi
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 livenessProbe:
@@ -291,8 +303,27 @@ autoscaling:
   enabled: true
   minReplicas: 10
   maxReplicas: 50
-  targetCPUUtilizationPercentage: 70
-  targetMemoryUtilizationPercentage: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+      - type: Percent
+        value: 20
+        periodSeconds: 300
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 4
+        periodSeconds: 15
+      selectPolicy: Max
+  # targetCPUUtilizationPercentage: 70
+  # targetMemoryUtilizationPercentage: 70
+  requestsPerPod: 10
+  failedResponseCode: 10
 
 # Additional volumes on the output Deployment definition.
 volumes: []

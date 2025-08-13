@@ -24,9 +24,14 @@ class InfoCardWidget extends StatelessWidget {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16.0),
-        margin: const EdgeInsets.only(left: 8.0, right: 8.0, top: 12, bottom: 6),
+        margin: EdgeInsets.only(
+          left: MediaQuery.of(context).size.width * 0.05,
+          right: MediaQuery.of(context).size.width * 0.05,
+          top: 12,
+          bottom: 6,
+        ),
         decoration: BoxDecoration(
-          color: Colors.grey.shade900,
+          color: const Color(0xFF1F1F25),
           borderRadius: BorderRadius.circular(16.0),
         ),
         child: Column(
@@ -65,7 +70,7 @@ class InfoCardWidget extends StatelessWidget {
                           backgroundColor: Colors.transparent,
                           shape: StadiumBorder(
                             side: BorderSide(
-                              color: Colors.grey.shade800,
+                              color: Color(0xFF35343B),
                             ),
                           ),
                         ))
@@ -86,7 +91,7 @@ class InfoCardWidget extends StatelessWidget {
                           backgroundColor: Colors.transparent,
                           shape: StadiumBorder(
                             side: BorderSide(
-                              color: Colors.grey.shade800,
+                              color: Color(0xFF35343B),
                             ),
                           ),
                         ))

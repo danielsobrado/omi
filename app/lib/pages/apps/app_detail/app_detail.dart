@@ -1,8 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:omi/pages/apps/app_home_web_page.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:omi/pages/apps/widgets/full_screen_image_viewer.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:omi/backend/http/api/apps.dart';
@@ -10,6 +12,7 @@ import 'package:omi/backend/preferences.dart';
 import 'package:omi/pages/apps/app_detail/reviews_list_page.dart';
 import 'package:omi/pages/apps/app_detail/widgets/add_review_widget.dart';
 import 'package:omi/pages/apps/markdown_viewer.dart';
+import 'package:omi/pages/chat/page.dart';
 import 'package:omi/pages/apps/providers/add_app_provider.dart';
 import 'package:omi/providers/app_provider.dart';
 import 'package:omi/providers/home_provider.dart';
@@ -47,6 +50,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
   bool setupCompleted = false;
   bool appLoading = false;
   bool isLoading = false;
+  bool chatButtonLoading = false;
   Timer? _paymentCheckTimer;
   late App app;
 
@@ -90,7 +94,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
       }
 
       setIsLoading(false);
-      if (mounted){
+      if (mounted) {
         context.read<AppProvider>().checkIsAppOwner(app.uid);
         context.read<AppProvider>().setIsAppPublicToggled(!app.private);
       }
@@ -209,26 +213,64 @@ class _AppDetailPageState extends State<AppDetailPage> {
         actions: [
           if (app.enabled && app.worksWithChat()) ...[
             GestureDetector(
-              child: const Icon(Icons.question_answer),
-              onTap: () async {
-                Navigator.pop(context);
-                context.read<HomeProvider>().setIndex(1);
-                if (context.read<HomeProvider>().onSelectedIndexChanged != null) {
-                  context.read<HomeProvider>().onSelectedIndexChanged!(1);
-                }
-                var appId = app.id;
-                var appProvider = Provider.of<AppProvider>(context, listen: false);
-                var messageProvider = Provider.of<MessageProvider>(context, listen: false);
-                App? selectedApp;
-                if (appId.isNotEmpty) {
-                  selectedApp = await appProvider.getAppFromId(appId);
-                }
-                appProvider.setSelectedChatAppId(appId);
-                await messageProvider.refreshMessages();
-                if (messageProvider.messages.isEmpty) {
-                  messageProvider.sendInitialAppMessage(selectedApp);
-                }
-              },
+              child: chatButtonLoading
+                  ? Container(
+                      width: 16,
+                      height: 16,
+                      alignment: Alignment.center,
+                      child: const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                    )
+                  : const Icon(FontAwesomeIcons.solidComments),
+              onTap: chatButtonLoading
+                  ? null
+                  : () async {
+                      HapticFeedback.mediumImpact();
+
+                      // Prevent multiple clicks
+                      if (chatButtonLoading) return;
+
+                      setState(() => chatButtonLoading = true);
+
+                      try {
+                        // Navigate directly to chat page with this app selected
+                        var appId = app.id;
+                        var appProvider = Provider.of<AppProvider>(context, listen: false);
+                        var messageProvider = Provider.of<MessageProvider>(context, listen: false);
+
+                        // Set the selected app
+                        appProvider.setSelectedChatAppId(appId);
+
+                        // Refresh messages and get the selected app
+                        await messageProvider.refreshMessages();
+                        App? selectedApp = await appProvider.getAppFromId(appId);
+
+                        // Send initial message if chat is empty
+                        if (messageProvider.messages.isEmpty) {
+                          messageProvider.sendInitialAppMessage(selectedApp);
+                        }
+
+                        // Navigate directly to chat page
+                        if (mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ChatPage(isPivotBottom: false),
+                            ),
+                          );
+                        }
+                      } finally {
+                        if (mounted) {
+                          setState(() => chatButtonLoading = false);
+                        }
+                      }
+                    },
             ),
             const SizedBox(width: 24),
           ],
@@ -252,8 +294,9 @@ class _AppDetailPageState extends State<AppDetailPage> {
           isLoading || app.private
               ? const SizedBox.shrink()
               : GestureDetector(
-                  child: const Icon(Icons.share),
+                  child: const Icon(FontAwesomeIcons.arrowUpFromBracket),
                   onTap: () {
+                    HapticFeedback.mediumImpact();
                     MixpanelManager().track('App Shared', properties: {'appId': app.id});
                     if (app.isNotPersona()) {
                       Share.share(
@@ -454,7 +497,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
                           text: '',
                           width: MediaQuery.of(context).size.width * 0.9,
                           onPressed: () async {},
-                          color: Colors.grey.shade800,
+                          color: Color(0xFF35343B),
                         ),
                       ),
                     )
@@ -827,9 +870,14 @@ class _AppDetailPageState extends State<AppDetailPage> {
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16.0),
-                  margin: const EdgeInsets.only(left: 8.0, right: 8.0, top: 12, bottom: 6),
+                  margin: EdgeInsets.only(
+                    left: MediaQuery.of(context).size.width * 0.05,
+                    right: MediaQuery.of(context).size.width * 0.05,
+                    top: 12,
+                    bottom: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade900,
+                    color: const Color(0xFF1F1F25),
                     borderRadius: BorderRadius.circular(16.0),
                   ),
                   child: Column(
@@ -979,10 +1027,10 @@ class RecentReviewsSection extends StatelessWidget {
         ConstrainedBox(
           constraints: BoxConstraints(
             maxHeight: reviews.any((e) => e.response.isNotEmpty)
-                ? MediaQuery.of(context).size.height * 0.24
+                ? MediaQuery.of(context).size.height * 0.28
                 : (MediaQuery.of(context).size.height < 680
-                    ? MediaQuery.of(context).size.height * 0.2
-                    : MediaQuery.of(context).size.height * 0.138),
+                    ? MediaQuery.of(context).size.height * 0.22
+                    : MediaQuery.of(context).size.height * 0.16),
           ),
           child: ListView.separated(
             scrollDirection: Axis.horizontal,

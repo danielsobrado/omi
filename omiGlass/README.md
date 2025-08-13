@@ -1,4 +1,4 @@
-<!-- This file is auto-generated from docs/docs/hardware/omiGlass.mdx. Do not edit manually. -->
+<!-- This file is auto-generated from docs/doc/hardware/omiGlass.mdx. Do not edit manually. -->
 # omiGlass - Open Source Meta Raybans with 6x of their battery
 
 <p align="center">
@@ -24,7 +24,7 @@ We will ship a limited number of pre-built kits. Get a Dev [kit here](https://om
 
 ## Community
 
-Join the [Based Hardware Discord](https://discord.gg/omi) for setup questions, contribution guide, and more.
+Join the [Based Hardware Discord](http://discord.omi.me) for setup questions, contribution guide, and more.
 
 ## Prerequisites
 

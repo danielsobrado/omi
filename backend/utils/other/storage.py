@@ -22,6 +22,7 @@ s3_client = boto3.client(
     config=Config(signature_version='s3v4')
 )
 
+
 # *******************************************
 # ************* SPEECH PROFILE **************
 # *******************************************
@@ -93,6 +94,7 @@ def get_additional_profile_recordings(uid: str, download: bool = False) -> List[
 # ********************************************
 # ************* PEOPLE PROFILES **************
 # ********************************************
+
 
 def upload_user_person_speech_sample(file_path: str, uid: str, person_id: str) -> None:
     file_name = file_path.split("/")[-1]
@@ -190,6 +192,7 @@ def delete_postprocessing_audio(file_path: str):
 # ************* SDCARD **************
 # ***********************************
 
+
 def upload_sdcard_audio(file_path: str):
     object_key = f'postprocessing/sdcard/{file_path}'
     s3_client.upload_file(file_path, S3_BUCKET_NAME, object_key)
@@ -204,6 +207,7 @@ def download_postprocessing_audio(file_path: str, destination_file_path: str):
 # ************************************************
 # *********** CONVERSATIONS RECORDINGS ***********
 # ************************************************
+
 
 def upload_conversation_recording(file_path: str, uid: str, conversation_id: str):
     object_key = f'memories-recordings/{uid}/{conversation_id}.wav'
@@ -243,6 +247,7 @@ def get_syncing_file_temporal_url(file_path: str):
     object_key = f'temporal-sync/{file_path}'
     s3_client.upload_file(file_path, S3_BUCKET_NAME, object_key)
     return f'{S3_ENDPOINT_URL}/{S3_BUCKET_NAME}/{object_key}'
+
 
 def get_syncing_file_temporal_signed_url(file_path: str):
     object_key = f'temporal-sync/{file_path}'
@@ -305,6 +310,7 @@ def delete_app_logo(img_url: str):
     print('delete_app_logo', object_key)
     s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=object_key)
 
+
 def upload_app_thumbnail(file_path: str, thumbnail_id: str) -> str:
     object_key = f'app-thumbnails/{thumbnail_id}.jpg'
     s3_client.upload_file(file_path, S3_BUCKET_NAME, object_key)
@@ -319,9 +325,11 @@ def upload_app_thumbnail(file_path: str, thumbnail_id: str) -> str:
     public_url = f'{S3_ENDPOINT_URL}/{S3_BUCKET_NAME}/{object_key}'
     return public_url
 
+
 def get_app_thumbnail_url(thumbnail_id: str) -> str:
     object_key = f'app-thumbnails/{thumbnail_id}.jpg'
     return f'{S3_ENDPOINT_URL}/{S3_BUCKET_NAME}/{object_key}'
+
 
 # **********************************
 # ************* CHAT FILES **************

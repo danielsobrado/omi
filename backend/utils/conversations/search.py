@@ -28,13 +28,13 @@ if typesense_api_key and typesense_host and typesense_port:
 
 
 def search_conversations(
-        uid: str,
-        query: str,
-        page: int = 1,
-        per_page: int = 10,
-        include_discarded: bool = True,
-        start_date: int = None,
-        end_date: int = None,
+    uid: str,
+    query: str,
+    page: int = 1,
+    per_page: int = 10,
+    include_discarded: bool = True,
+    start_date: int = None,
+    end_date: int = None,
 ) -> Dict:
     # If Typesense is not configured, return empty results
     if client is None:
@@ -60,7 +60,7 @@ def search_conversations(
 
         search_parameters = {
             'q': query,
-            'query_by': 'structured, transcript_segments',
+            'query_by': 'structured.overview, structured.title',
             'filter_by': filter_by,
             'sort_by': 'created_at:desc',
             'per_page': per_page,
@@ -78,7 +78,7 @@ def search_conversations(
             'items': memories,
             'total_pages': math.ceil(results['found'] / per_page),
             'current_page': page,
-            'per_page': per_page
+            'per_page': per_page,
         }
     except Exception as e:
         raise Exception(f"Failed to search conversations: {str(e)}")
