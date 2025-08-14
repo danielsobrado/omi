@@ -16,6 +16,7 @@ class AuthenticationProvider extends BaseProvider {
   User? user;
   String? authToken;
   bool _loading = false;
+  @override
   bool get loading => _loading;
 
   AuthenticationProvider() {
@@ -80,6 +81,23 @@ class AuthenticationProvider extends BaseProvider {
         _signIn(onSignIn);
       } else {
         AppSnackbar.showSnackbarError('Failed to sign in with Apple, please try again.');
+      }
+      setLoadingState(false);
+    }
+  }
+
+  Future<void> onEmailPasswordSignIn(String email, String password, Function() onSignIn) async {
+    if (!loading) {
+      setLoadingState(true);
+      try {
+        final result = await backend_auth.signInWithEmailAndPassword(email, password);
+        if (result != null && isSignedIn()) {
+          _signIn(onSignIn);
+        } else {
+          AppSnackbar.showSnackbarError('Invalid username or password.');
+        }
+      } catch (e) {
+        AppSnackbar.showSnackbarError('Failed to sign in. Please try again.');
       }
       setLoadingState(false);
     }
@@ -193,7 +211,7 @@ class AuthenticationProvider extends BaseProvider {
         rethrow;
       }
     } catch (e) {
-      print('Error linking with Apple: $e');
+      debugPrint('Error linking with Apple: $e');
       AppSnackbar.showSnackbarError('Failed to link with Apple, please try again.');
       rethrow;
     } finally {

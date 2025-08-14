@@ -127,7 +127,7 @@ class _DesktopCompleteScreenState extends State<DesktopCompleteScreen> with Tick
                         constraints: const BoxConstraints(maxWidth: 480),
                         padding: const EdgeInsets.symmetric(horizontal: 40),
                         child: const Text(
-                          'Welcome to Omi! Your AI companion is ready to assist you with conversations, tasks, and more.',
+                          'Welcome to GovIlm! Your AI companion is ready to assist you with conversations, tasks, and more.',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w400,
@@ -142,7 +142,7 @@ class _DesktopCompleteScreenState extends State<DesktopCompleteScreen> with Tick
                         constraints: const BoxConstraints(maxWidth: 400),
                         margin: const EdgeInsets.symmetric(horizontal: 40),
                         child: OmiButton(
-                          label: 'Start Using Omi',
+                          label: 'Start Using GovIlm',
                           icon: Icons.arrow_forward_rounded,
                           onPressed: () {
                             MixpanelManager().onboardingCompleted();

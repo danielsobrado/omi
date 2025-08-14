@@ -218,7 +218,7 @@ class _DesktopLanguageScreenState extends State<DesktopLanguageScreen> with Tick
                   ),
                   SizedBox(height: responsive.spacing(baseSpacing: 8)),
                   const Text(
-                    'Select your preferred language for the best Omi experience',
+                    'Select your preferred language for the best GovIlm experience',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w400,

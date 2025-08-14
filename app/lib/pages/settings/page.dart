@@ -146,7 +146,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
         // Information
         getItemAddOn2(
-          'About Omi',
+          'About GovIlm',
           () => routeToPage(context, const AboutOmiPage()),
           icon: const Icon(Icons.info_outline, color: Colors.white, size: 22),
         ),

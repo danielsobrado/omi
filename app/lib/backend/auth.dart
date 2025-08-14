@@ -400,7 +400,7 @@ Future<void> signOut() async {
 
 bool isSignedIn() => FirebaseAuth.instance.currentUser != null && !FirebaseAuth.instance.currentUser!.isAnonymous;
 
-getFirebaseUser() {
+User? getFirebaseUser() {
   return FirebaseAuth.instance.currentUser;
 }
 
@@ -554,11 +554,88 @@ Future<UserCredential?> _linkWithGoogleAllPlatforms() async {
   }
 }
 
+/// Sign in with email and password
+Future<UserCredential?> signInWithEmailAndPassword(String email, String password) async {
+  try {
+    debugPrint('Attempting to sign in with email: $email');
+    
+    // For now, hardcode admin/admin credentials
+    // In production, you'd want to use Firebase Auth's email/password authentication
+    if (email == 'admin' && password == 'admin') {
+      // Create a temporary email for Firebase Auth
+      const adminEmail = 'daniel@danielsobrado.com';
+      
+      // Try to sign in first, if it fails, create the account
+      try {
+        var result = await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: adminEmail,
+          password: password,
+        );
+        
+        debugPrint('Admin signed in successfully');
+        return _processEmailPasswordSignInResult(result);
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'user-not-found') {
+          // Create admin account
+          debugPrint('Creating admin account');
+          var result = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+            email: adminEmail,
+            password: password,
+          );
+          
+          // Update profile with display name
+          await result.user?.updateProfile(displayName: 'Admin User');
+          
+          debugPrint('Admin account created successfully');
+          return _processEmailPasswordSignInResult(result);
+        }
+        rethrow;
+      }
+    } else {
+      // Invalid credentials
+      debugPrint('Invalid credentials provided');
+      Logger.error('Invalid username or password');
+      return null;
+    }
+  } on FirebaseAuthException catch (e) {
+    debugPrint('FirebaseAuthException: ${e.code} - ${e.message}');
+    Logger.error('An error occurred while signing in. Please try again later.');
+    return null;
+  } catch (e) {
+    debugPrint('Error during email/password sign in: $e');
+    Logger.handle(e, null, message: 'An error occurred while signing in. Please try again later.');
+    return null;
+  }
+}
+
+/// Process the result of email/password sign-in
+Future<UserCredential?> _processEmailPasswordSignInResult(UserCredential result) async {
+  var user = result.user;
+  if (user == null) return null;
+
+  debugPrint('Email/Password Sign-in successful.');
+  debugPrint('Firebase User ID: ${user.uid}');
+  debugPrint('Firebase User Email: ${user.email ?? "null"}');
+  debugPrint('Firebase User Display Name: ${user.displayName ?? "null"}');
+
+  // Update local storage
+  SharedPreferencesUtil().email = user.email ?? '';
+  SharedPreferencesUtil().givenName = user.displayName?.split(' ')[0] ?? 'Admin';
+  SharedPreferencesUtil().familyName = user.displayName?.split(' ').skip(1).join(' ') ?? 'User';
+
+  debugPrint('Email/Password Sign-in Name: ${SharedPreferencesUtil().fullName}');
+  debugPrint('Email/Password Sign-in Email: ${SharedPreferencesUtil().email}');
+
+  // Bring app to front after successful authentication
+  await _bringAppToFront();
+
+  return result;
+}
+
 /// Handle the case when credential is already in use
 Future<UserCredential?> _handleExistingCredential(FirebaseAuthException e) async {
   // Get existing user credentials
   final existingCred = e.credential;
-  final oldUserId = FirebaseAuth.instance.currentUser?.uid;
 
   // Sign out current anonymous user
   await FirebaseAuth.instance.signOut();

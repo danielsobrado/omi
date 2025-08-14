@@ -182,7 +182,7 @@ class _ApiKeysWidgetState extends State<ApiKeysWidget> {
                           ),
                         );
                       },
-                      tooltip: 'About Omi API Keys',
+                      tooltip: 'About GovIlm API Keys',
                     ),
                   ],
                 ),

@@ -6,6 +6,7 @@ import 'package:omi/backend/preferences.dart';
 import 'package:omi/providers/auth_provider.dart';
 import 'package:omi/utils/responsive/responsive_helper.dart';
 import 'package:omi/gen/assets.gen.dart';
+import 'package:omi/widgets/username_password_login.dart';
 import 'package:provider/provider.dart';
 import 'package:omi/ui/atoms/omi_button.dart';
 import 'package:omi/ui/molecules/omi_sign_in_button.dart';
@@ -20,6 +21,8 @@ class DesktopAuthScreen extends StatefulWidget {
 }
 
 class _DesktopAuthScreenState extends State<DesktopAuthScreen> {
+  bool _showUsernamePasswordLogin = false;
+
   @override
   Widget build(BuildContext context) {
     final responsive = ResponsiveHelper(context);
@@ -35,122 +38,251 @@ class _DesktopAuthScreenState extends State<DesktopAuthScreen> {
             child: Container(
               constraints: const BoxConstraints(maxWidth: 480),
               padding: responsive.contentPadding(basePadding: 40),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 88,
-                    height: 88,
-                    decoration: BoxDecoration(
-                      color: ResponsiveHelper.backgroundSecondary,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Assets.images.logoTransparent.image(
-                      width: 88,
-                      height: 88,
-                    ),
-                  ),
-
-                  SizedBox(height: responsive.spacing(baseSpacing: 32)),
-
-                  Text(
-                    'Welcome to Omi',
-                    style: responsive.headlineLarge.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-
-                  SizedBox(height: responsive.spacing(baseSpacing: 12)),
-
-                  Text(
-                    'Your personal growth journey with AI that listens to your every word.',
-                    style: responsive.bodyLarge.copyWith(
-                      color: ResponsiveHelper.textSecondary,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-
-                  SizedBox(height: responsive.spacing(baseSpacing: 48)),
-
-                  // Auth buttons with loading state
-                  Consumer<AuthenticationProvider>(
-                    builder: (context, provider, child) {
-                      return Column(
-                        children: [
-                          // Loading indicator
-                          SizedBox(
-                            height: 32,
-                            child: provider.loading
-                                ? const CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation(ResponsiveHelper.purplePrimary),
-                                  )
-                                : null,
-                          ),
-
-                          SizedBox(height: responsive.spacing(baseSpacing: 24)),
-
-                          // Apple Sign In (if available)
-                          if (Platform.isMacOS) ...[
-                            OmiSignInButton(
-                              icon: Icons.apple,
-                              label: 'Continue with Apple',
-                              onPressed: provider.loading ? null : () => _handleAppleSignIn(provider),
-                              enabled: !provider.loading,
-                            ),
-                            SizedBox(height: responsive.spacing(baseSpacing: 16)),
-                          ],
-
-                          // Google Sign In
-                          OmiSignInButton(
-                            icon: Icons.g_mobiledata,
-                            label: 'Continue with Google',
-                            onPressed: provider.loading ? null : () => _handleGoogleSignIn(provider),
-                            enabled: !provider.loading,
-                          ),
-
-                          SizedBox(height: responsive.spacing(baseSpacing: 24)),
-
-                          // Terms and privacy
-                          RichText(
-                            textAlign: TextAlign.center,
-                            text: TextSpan(
-                              style: responsive.bodySmall.copyWith(
-                                color: ResponsiveHelper.textTertiary,
-                              ),
-                              children: [
-                                const TextSpan(text: 'By continuing, you agree to our '),
-                                TextSpan(
-                                  text: 'Terms of Service',
-                                  style: responsive.bodySmall.copyWith(
-                                    color: ResponsiveHelper.textSecondary,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                                  recognizer: TapGestureRecognizer()..onTap = provider.openTermsOfService,
-                                ),
-                                const TextSpan(text: ' and '),
-                                TextSpan(
-                                  text: 'Privacy Policy',
-                                  style: responsive.bodySmall.copyWith(
-                                    color: ResponsiveHelper.textSecondary,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                                  recognizer: TapGestureRecognizer()..onTap = provider.openPrivacyPolicy,
-                                ),
-                                const TextSpan(text: '.'),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
+                child: _showUsernamePasswordLogin
+                    ? _buildUsernamePasswordContent(responsive)
+                    : _buildOAuthContent(responsive),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildUsernamePasswordContent(ResponsiveHelper responsive) {
+    return Column(
+      key: const ValueKey('username_password'),
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 88,
+          height: 88,
+          decoration: BoxDecoration(
+            color: ResponsiveHelper.backgroundSecondary,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Assets.images.logoTransparent.image(
+            width: 88,
+            height: 88,
+          ),
+        ),
+
+        SizedBox(height: responsive.spacing(baseSpacing: 32)),
+
+        Text(
+          'Sign In to Continue',
+          style: responsive.headlineLarge.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+          textAlign: TextAlign.center,
+        ),
+
+        SizedBox(height: responsive.spacing(baseSpacing: 12)),
+
+        Text(
+          'Enter your credentials to access your account.',
+          style: responsive.bodyLarge.copyWith(
+            color: ResponsiveHelper.textSecondary,
+          ),
+          textAlign: TextAlign.center,
+        ),
+
+        SizedBox(height: responsive.spacing(baseSpacing: 48)),
+
+        // Username/Password login form
+        UsernamePasswordLogin(
+          onSignIn: widget.onSignIn,
+          isDarkMode: false,
+        ),
+
+        SizedBox(height: responsive.spacing(baseSpacing: 32)),
+
+        // Switch to OAuth button
+        TextButton.icon(
+          onPressed: () {
+            setState(() {
+              _showUsernamePasswordLogin = false;
+            });
+          },
+          icon: const Icon(
+            Icons.arrow_back,
+            color: ResponsiveHelper.textSecondary,
+            size: 16,
+          ),
+          label: Text(
+            'Back to OAuth Login',
+            style: responsive.bodyMedium.copyWith(
+              color: ResponsiveHelper.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOAuthContent(ResponsiveHelper responsive) {
+    return Column(
+      key: const ValueKey('oauth'),
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 88,
+          height: 88,
+          decoration: BoxDecoration(
+            color: ResponsiveHelper.backgroundSecondary,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Assets.images.logoTransparent.image(
+            width: 88,
+            height: 88,
+          ),
+        ),
+
+        SizedBox(height: responsive.spacing(baseSpacing: 32)),
+
+        Text(
+          'Welcome to GovIlm',
+          style: responsive.headlineLarge.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+          textAlign: TextAlign.center,
+        ),
+
+        SizedBox(height: responsive.spacing(baseSpacing: 12)),
+
+        Text(
+          'Your personal growth journey with AI that listens to your every word.',
+          style: responsive.bodyLarge.copyWith(
+            color: ResponsiveHelper.textSecondary,
+          ),
+          textAlign: TextAlign.center,
+        ),
+
+        SizedBox(height: responsive.spacing(baseSpacing: 48)),
+
+        // Auth buttons with loading state
+        Consumer<AuthenticationProvider>(
+          builder: (context, provider, child) {
+            return Column(
+              children: [
+                // Loading indicator
+                SizedBox(
+                  height: 32,
+                  child: provider.loading
+                      ? const CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation(ResponsiveHelper.purplePrimary),
+                        )
+                      : null,
+                ),
+
+                SizedBox(height: responsive.spacing(baseSpacing: 24)),
+
+                // Apple Sign In (if available)
+                if (Platform.isMacOS) ...[
+                  OmiSignInButton(
+                    icon: Icons.apple,
+                    label: 'Continue with Apple',
+                    onPressed: provider.loading ? null : () => _handleAppleSignIn(provider),
+                    enabled: !provider.loading,
+                  ),
+                  SizedBox(height: responsive.spacing(baseSpacing: 16)),
+                ],
+
+                // Google Sign In
+                OmiSignInButton(
+                  icon: Icons.g_mobiledata,
+                  label: 'Continue with Google',
+                  onPressed: provider.loading ? null : () => _handleGoogleSignIn(provider),
+                  enabled: !provider.loading,
+                ),
+
+                SizedBox(height: responsive.spacing(baseSpacing: 16)),
+
+                // Divider with "OR"
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: 1,
+                        color: ResponsiveHelper.textTertiary.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: responsive.spacing(baseSpacing: 16)),
+                      child: Text(
+                        'OR',
+                        style: responsive.bodySmall.copyWith(
+                          color: ResponsiveHelper.textTertiary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Container(
+                        height: 1,
+                        color: ResponsiveHelper.textTertiary.withValues(alpha: 0.3),
+                      ),
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: responsive.spacing(baseSpacing: 16)),
+
+                // Username/Password login button
+                OmiButton(
+                  label: 'Sign in with Username',
+                  icon: Icons.person,
+                  type: OmiButtonType.neutral,
+                  onPressed: provider.loading ? null : () {
+                    setState(() {
+                      _showUsernamePasswordLogin = true;
+                    });
+                  },
+                ),
+
+                SizedBox(height: responsive.spacing(baseSpacing: 24)),
+
+                // Terms and privacy
+                RichText(
+                  textAlign: TextAlign.center,
+                  text: TextSpan(
+                    style: responsive.bodySmall.copyWith(
+                      color: ResponsiveHelper.textTertiary,
+                    ),
+                    children: [
+                      const TextSpan(text: 'By continuing, you agree to our '),
+                      TextSpan(
+                        text: 'Terms of Service',
+                        style: responsive.bodySmall.copyWith(
+                          color: ResponsiveHelper.textSecondary,
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: TapGestureRecognizer()..onTap = provider.openTermsOfService,
+                      ),
+                      const TextSpan(text: ' and '),
+                      TextSpan(
+                        text: 'Privacy Policy',
+                        style: responsive.bodySmall.copyWith(
+                          color: ResponsiveHelper.textSecondary,
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: TapGestureRecognizer()..onTap = provider.openPrivacyPolicy,
+                      ),
+                      const TextSpan(text: '.'),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 

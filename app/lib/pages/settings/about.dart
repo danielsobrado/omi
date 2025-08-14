@@ -18,7 +18,7 @@ class _AboutOmiPageState extends State<AboutOmiPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primary,
       appBar: AppBar(
-        title: const Text('About Omi'),
+        title: const Text('About GovIlm'),
         backgroundColor: Theme.of(context).colorScheme.primary,
       ),
       body: Padding(

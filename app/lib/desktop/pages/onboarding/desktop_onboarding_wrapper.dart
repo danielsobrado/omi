@@ -33,7 +33,7 @@ class _DesktopOnboardingWrapperState extends State<DesktopOnboardingWrapper> wit
     OnboardingStep(
       id: 'auth',
       title: 'Sign In',
-      description: 'Welcome to Omi',
+      description: 'Welcome to GovIlm',
       icon: Icons.login_rounded,
     ),
     OnboardingStep(

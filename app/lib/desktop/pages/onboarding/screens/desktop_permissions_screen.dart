@@ -172,7 +172,7 @@ class _DesktopPermissionsScreenState extends State<DesktopPermissionsScreen>
                               constraints: const BoxConstraints(maxWidth: 480),
                               padding: const EdgeInsets.symmetric(horizontal: 40),
                               child: const Text(
-                                'Enable features for the best Omi experience on your device.',
+                                'Enable features for the best GovIlm experience on your device.',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w400,
