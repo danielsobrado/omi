@@ -13,6 +13,7 @@ import 'package:omi/backend/schema/geolocation.dart';
 import 'package:omi/main.dart';
 import 'package:omi/pages/action_items/action_items_page.dart';
 import 'package:omi/pages/apps/page.dart';
+import 'package:omi/pages/meeting_summary/meeting_summary_page.dart';
 import 'package:omi/pages/chat/page.dart';
 import 'package:omi/pages/conversations/conversations_page.dart';
 import 'package:omi/pages/memories/page.dart';
@@ -401,7 +402,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                 ConversationsPage(),
                                 ActionItemsPage(),
                                 MemoriesPage(),
-                                AppsPage(),
+                                MeetingSummaryPage(), // Replaced AppsPage() with MeetingSummaryPage()
                               ],
                             ),
                           ),
@@ -536,7 +537,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                           child: InkWell(
                                             onTap: () {
                                               HapticFeedback.mediumImpact();
-                                              MixpanelManager().bottomNavigationTabClicked('Explore');
+                                              MixpanelManager().bottomNavigationTabClicked('Meeting Summary');
                                               primaryFocus?.unfocus();
                                               if (home.selectedIndex == 3) {
                                                 return;
@@ -553,7 +554,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                                   mainAxisAlignment: MainAxisAlignment.center,
                                                   children: [
                                                     Icon(
-                                                      FontAwesomeIcons.puzzlePiece,
+                                                      FontAwesomeIcons.users,
                                                       color: home.selectedIndex == 3 ? Colors.white : Colors.grey,
                                                       size: 24,
                                                     ),

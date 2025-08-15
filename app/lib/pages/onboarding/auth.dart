@@ -36,7 +36,7 @@ class _AuthComponentState extends State<AuthComponent> {
               width: double.infinity,
               padding: EdgeInsets.fromLTRB(32, 26, 32, MediaQuery.of(context).padding.bottom + 8),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.3), // 30% transparency
+                color: Colors.black.withValues(alpha: 0.7), // 30% transparency
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(40),
                   topRight: Radius.circular(40),

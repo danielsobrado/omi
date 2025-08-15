@@ -13,6 +13,7 @@ import 'package:omi/pages/settings/device_settings.dart';
 import 'package:omi/desktop/pages/settings/desktop_profile_page.dart';
 import 'apps/desktop_apps_page.dart';
 import 'apps/desktop_add_app_page.dart';
+import 'meeting_summary/desktop_meeting_summary_page.dart';
 import 'conversations/desktop_conversations_page.dart';
 import 'chat/desktop_chat_page.dart';
 import 'memories/desktop_memories_page.dart';
@@ -423,9 +424,7 @@ class _DesktopHomePageState extends State<DesktopHomePage> with WidgetsBindingOb
                                       const DesktopChatPage(),
                                       const DesktopMemoriesPage(),
                                       const DesktopActionsPage(),
-                                      DesktopAppsPage(
-                                        onNavigateToCreateApp: navigateToCreateApp,
-                                      ),
+                                      const DesktopMeetingSummaryPage(), // Replaced DesktopAppsPage
                                       DesktopAddAppPage(
                                         onNavigateBack: navigateBackToApps,
                                       ),
@@ -527,8 +526,8 @@ class _DesktopHomePageState extends State<DesktopHomePage> with WidgetsBindingOb
                           ),
                           const SizedBox(height: 4),
                           _buildNavItem(
-                            icon: FontAwesomeIcons.store,
-                            label: 'Apps',
+                            icon: FontAwesomeIcons.users,
+                            label: 'Meeting Summary',
                             index: 4,
                             isSelected: homeProvider.selectedIndex == 4,
                             onTap: () => _navigateToIndex(4, homeProvider),
@@ -618,7 +617,7 @@ class _DesktopHomePageState extends State<DesktopHomePage> with WidgetsBindingOb
             child: InkWell(
               onTap: () {
                 MixpanelManager()
-                    .bottomNavigationTabClicked(['Conversations', 'Chat', 'Memories', 'Actions', 'Apps'][index]);
+                    .bottomNavigationTabClicked(['Conversations', 'Chat', 'Memories', 'Actions', 'Meeting Summary'][index]);
                 onTap();
               },
               borderRadius: BorderRadius.circular(8),
