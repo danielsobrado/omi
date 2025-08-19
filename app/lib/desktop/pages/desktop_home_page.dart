@@ -526,7 +526,7 @@ class _DesktopHomePageState extends State<DesktopHomePage> with WidgetsBindingOb
                           ),
                           const SizedBox(height: 4),
                           _buildNavItem(
-                            icon: FontAwesomeIcons.users,
+                            icon: FontAwesomeIcons.google,
                             label: 'Meeting Summary',
                             index: 4,
                             isSelected: homeProvider.selectedIndex == 4,

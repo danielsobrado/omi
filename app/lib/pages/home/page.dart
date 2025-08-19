@@ -554,7 +554,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                                                   mainAxisAlignment: MainAxisAlignment.center,
                                                   children: [
                                                     Icon(
-                                                      FontAwesomeIcons.users,
+                                                      FontAwesomeIcons.google,
                                                       color: home.selectedIndex == 3 ? Colors.white : Colors.grey,
                                                       size: 24,
                                                     ),
